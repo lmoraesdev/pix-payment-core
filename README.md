@@ -6,7 +6,7 @@ Built as a portable demo of the techniques I apply when working with real paymen
 
 ![nodejs](https://img.shields.io/badge/Node.js-20-339933?logo=nodedotjs&logoColor=white)
 ![typescript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
-![nestjs](https://img.shields.io/badge/NestJS-10-E0234E?logo=nestjs&logoColor=white)
+![nestjs](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)
 ![postgres](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)
 
