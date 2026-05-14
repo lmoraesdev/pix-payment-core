@@ -8,7 +8,7 @@ export class IdempotencyKey {
   @Column({ name: 'charge_id', type: 'varchar' })
   chargeId!: string;
 
-  @Column({ name: 'request_hash', type: 'varchar' })
+  @Column({ name: 'request_hash', type: 'varchar', length: 64 })
   requestHash!: string;
 
   @Column({ name: 'response_body', type: 'jsonb' })
