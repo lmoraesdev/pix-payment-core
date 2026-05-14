@@ -1,16 +1,11 @@
-import { IsDateString, IsIn, IsString } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class WebhookEventDto {
-  @IsString()
-  event_id!: string;
+const WebhookEventSchema = z.object({
+  event_id: z.string(),
+  type: z.enum(['payment.confirmed', 'payment.expired']),
+  charge_id: z.string(),
+  occurred_at: z.string(),
+});
 
-  @IsString()
-  @IsIn(['payment.confirmed', 'payment.expired'])
-  type!: string;
-
-  @IsString()
-  charge_id!: string;
-
-  @IsDateString()
-  occurred_at!: string;
-}
+export class WebhookEventDto extends createZodDto(WebhookEventSchema) {}
