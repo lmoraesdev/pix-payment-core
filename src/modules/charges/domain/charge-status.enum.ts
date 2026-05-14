@@ -1,0 +1,6 @@
+export enum ChargeStatus {
+  CREATED = 'CREATED',
+  AWAITING_PAYMENT = 'AWAITING_PAYMENT',
+  PAID = 'PAID',
+  EXPIRED = 'EXPIRED',
+}
