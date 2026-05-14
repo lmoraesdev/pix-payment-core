@@ -191,7 +191,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The API is reachable at `http://localhost:3000`. PostgreSQL runs on `localhost:5432`.
+The API is reachable at `http://localhost:3000`. Interactive Swagger docs at `http://localhost:3000/api/docs`. PostgreSQL runs on `localhost:5432`.
 
 Run tests:
 
@@ -230,12 +230,21 @@ The domain layer has no NestJS or TypeORM imports. Business rules — including 
 - **TypeORM over Prisma.** Chosen to keep the stack close to what I use day-to-day. Prisma would be a natural next-step migration.
 - **5W1H logs.** Same format I've used in production. Makes log correlation across services trivial.
 
+## API documentation
+
+The API is documented with OpenAPI 3 via `@nestjs/swagger`. Once the service is running, the interactive Swagger UI is available at:
+
+```
+http://localhost:3000/api/docs
+```
+
+Every endpoint, DTO and response is annotated, so the docs always reflect the current code.
+
 ## Roadmap
 
 - [ ] Cancel and refund flows
 - [ ] Retry with exponential backoff (BullMQ + Redis)
 - [ ] Expiration job (cron-based, currently triggered by webhook only)
-- [ ] OpenAPI spec + Swagger UI
 - [ ] Migration to Prisma
 
 ## License
