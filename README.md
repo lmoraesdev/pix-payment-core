@@ -164,22 +164,45 @@ This pattern follows what Stripe and other payment platforms expose publicly.
 
 ## Logging (5W1H)
 
-Every log line carries the same shape, including a `correlation_id` propagated from request to response:
+Every log line is a single JSON object with a fixed shape. When an incident hits at 2am, every dimension is already there — no grepping across fields.
 
 ```json
 {
+  "level": "info",
   "where": "CreateChargeService",
   "what": "charge_created",
   "why": "user_request",
-  "who": "client_2NkLp",
+  "who": "12345678901",
   "how": "POST /charges",
   "when": "2026-05-13T14:32:00.123Z",
   "correlation_id": "req_8h2k3pX...",
-  "charge_id": "ch_2N9kP3lQ..."
+  "charge_id": "ch_2N9kP3lQ...",
+  "amount": 5000,
+  "currency": "BRL"
 }
 ```
 
-Why this shape: when an incident hits production, you don't have time to guess. The 5W1H format gives the on-call engineer every dimension they'd ask before they ask.
+### Events emitted
+
+| Service | `what` | `level` | Extra fields |
+|---------|--------|---------|--------------|
+| `CreateChargeService` | `charge_created` | info | `charge_id`, `amount`, `currency`, `who` (payer_document) |
+| `CreateChargeService` | `idempotency_cache_hit` | info | `charge_id` |
+| `CreateChargeService` | `idempotency_conflict` | warn | `key` |
+| `ProcessWebhookService` | `webhook_received` | info | `event_id`, `type`, `charge_id` |
+| `ProcessWebhookService` | `webhook_already_processed` | info | `event_id` |
+| `ProcessWebhookService` | `charge_state_transitioned` | info | `charge_id`, `from`, `to` |
+
+### correlation_id propagation
+
+The `CorrelationIdMiddleware` runs on every request. It reads `X-Correlation-Id` from the incoming headers — if present, it reuses it; if not, it generates `req_<uuid>`. The value is:
+
+1. Written back to the response as `X-Correlation-Id`
+2. Stored in an `AsyncLocalStorage` for the duration of the request
+
+Every log emitted anywhere in the async call chain automatically reads the stored value — services never receive `correlation_id` as a parameter.
+
+**Client-side tracing**: pass your own `X-Correlation-Id` on requests to link logs across services in a distributed system.
 
 ## Running locally
 
