@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'crypto';
-import { CreateChargeService } from '../../src/modules/charges/application/create-charge.service';
-import { IdempotencyConflictError } from '../../src/modules/charges/domain/idempotency-conflict.error';
-import { ChargeStatus } from '../../src/modules/charges/domain/charge-status.enum';
-import type { ChargeRepository } from '../../src/modules/charges/infrastructure/charge.repository';
-import type { IdempotencyRepository } from '../../src/modules/charges/infrastructure/idempotency.repository';
-import type { CreateChargeDto } from '../../src/modules/charges/application/dto/create-charge.dto';
-import type { Charge } from '../../src/modules/charges/domain/charge.entity';
-import type { IdempotencyKey } from '../../src/modules/charges/infrastructure/idempotency-key.entity';
-import type { ChargeResponseDto } from '../../src/modules/charges/application/dto/charge-response.dto';
+import { CreateChargeService } from '@/modules/charges/application/create-charge.service';
+import { IdempotencyConflictError } from '@/modules/charges/domain/idempotency-conflict.error';
+import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
+import type { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
+import type { IdempotencyRepository } from '@/modules/charges/infrastructure/idempotency.repository';
+import type { CreateChargeDto } from '@/modules/charges/application/dto/create-charge.dto';
+import type { Charge } from '@/modules/charges/domain/charge.entity';
+import type { IdempotencyKey } from '@/modules/charges/infrastructure/idempotency-key.entity';
+import type { ChargeResponseDto } from '@/modules/charges/application/dto/charge-response.dto';
 
 // SHA-256 de JSON com chaves ordenadas alfabeticamente — define o contrato
 // sem depender da implementação (o serviço deve chegar ao mesmo resultado)

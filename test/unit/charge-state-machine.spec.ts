@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   ChargeStateMachine,
   InvalidStateTransitionError,
-} from '../../src/modules/charges/domain/charge-state-machine';
-import { ChargeStatus } from '../../src/modules/charges/domain/charge-status.enum';
+} from '@/modules/charges/domain/charge-state-machine';
+import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
 
 describe('ChargeStateMachine', () => {
   describe('transições válidas', () => {

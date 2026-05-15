@@ -6,15 +6,15 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ProcessWebhookService } from '../../src/modules/webhooks/application/process-webhook.service';
-import { WebhookEventAlreadyProcessedError } from '../../src/modules/webhooks/domain/webhook-event-already-processed.error';
-import { WebhookEventRepository } from '../../src/modules/webhooks/infrastructure/webhook-event.repository';
-import { WebhooksController } from '../../src/modules/webhooks/presentation/webhooks.controller';
-import { ChargeStateMachine } from '../../src/modules/charges/domain/charge-state-machine';
-import { ChargeStatus } from '../../src/modules/charges/domain/charge-status.enum';
-import { ChargeRepository } from '../../src/modules/charges/infrastructure/charge.repository';
-import { DomainExceptionFilter } from '../../src/shared/filters/domain-exception.filter';
-import type { Charge } from '../../src/modules/charges/domain/charge.entity';
+import { ProcessWebhookService } from '@/modules/webhooks/application/process-webhook.service';
+import { WebhookEventAlreadyProcessedError } from '@/modules/webhooks/domain/webhook-event-already-processed.error';
+import { WebhookEventRepository } from '@/modules/webhooks/infrastructure/webhook-event.repository';
+import { WebhooksController } from '@/modules/webhooks/presentation/webhooks.controller';
+import { ChargeStateMachine } from '@/modules/charges/domain/charge-state-machine';
+import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
+import { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import type { Charge } from '@/modules/charges/domain/charge.entity';
 
 // ─── Infra ────────────────────────────────────────────────────────────────────
 

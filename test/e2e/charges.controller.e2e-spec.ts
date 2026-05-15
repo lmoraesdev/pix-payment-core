@@ -2,18 +2,18 @@ import { INestApplication } from '@nestjs/common';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { DomainExceptionFilter } from '../../src/shared/filters/domain-exception.filter';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { CreateChargeService } from '../../src/modules/charges/application/create-charge.service';
-import { GetChargeService } from '../../src/modules/charges/application/get-charge.service';
-import { Charge } from '../../src/modules/charges/domain/charge.entity';
-import { ChargeRepository } from '../../src/modules/charges/infrastructure/charge.repository';
-import { IdempotencyKey } from '../../src/modules/charges/infrastructure/idempotency-key.entity';
-import { IdempotencyRepository } from '../../src/modules/charges/infrastructure/idempotency.repository';
-import { ChargesController } from '../../src/modules/charges/presentation/charges.controller';
+import { CreateChargeService } from '@/modules/charges/application/create-charge.service';
+import { GetChargeService } from '@/modules/charges/application/get-charge.service';
+import { Charge } from '@/modules/charges/domain/charge.entity';
+import { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
+import { IdempotencyKey } from '@/modules/charges/infrastructure/idempotency-key.entity';
+import { IdempotencyRepository } from '@/modules/charges/infrastructure/idempotency.repository';
+import { ChargesController } from '@/modules/charges/presentation/charges.controller';
 
 class InMemoryChargeRepository {
   private store = new Map<string, Charge>();

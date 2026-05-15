@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GetChargeService } from '../../src/modules/charges/application/get-charge.service';
-import { ChargeNotFoundError } from '../../src/modules/charges/domain/charge-not-found.error';
-import { ChargeStatus } from '../../src/modules/charges/domain/charge-status.enum';
-import type { ChargeRepository } from '../../src/modules/charges/infrastructure/charge.repository';
-import type { Charge } from '../../src/modules/charges/domain/charge.entity';
+import { GetChargeService } from '@/modules/charges/application/get-charge.service';
+import { ChargeNotFoundError } from '@/modules/charges/domain/charge-not-found.error';
+import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
+import type { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
+import type { Charge } from '@/modules/charges/domain/charge.entity';
 
 const storedCharge = {
   id: 'charge-uuid-1',
