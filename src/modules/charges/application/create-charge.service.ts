@@ -1,14 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { CreateChargeDto } from './dto/create-charge.dto';
-import { ChargeResponseDto } from './dto/charge-response.dto';
+
+import { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
 import { Charge } from '@/modules/charges/domain/charge.entity';
 import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
 import { IdempotencyConflictError } from '@/modules/charges/domain/idempotency-conflict.error';
 import { IdempotencyKey } from '@/modules/charges/infrastructure/idempotency-key.entity';
 import { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
 import { IdempotencyRepository } from '@/modules/charges/infrastructure/idempotency.repository';
+import { CreateChargeDto } from './dto/create-charge.dto';
+import { ChargeResponseDto } from './dto/charge-response.dto';
 
 export interface CreateChargeResult {
   data: ChargeResponseDto;
@@ -17,10 +19,15 @@ export interface CreateChargeResult {
 
 @Injectable()
 export class CreateChargeService {
+  private readonly logger: StructuredLoggerService;
+
   constructor(
     private readonly chargeRepository: ChargeRepository,
     private readonly idempotencyRepository: IdempotencyRepository,
-  ) {}
+    logger: StructuredLoggerService,
+  ) {
+    this.logger = logger.forContext('CreateChargeService');
+  }
 
   async execute(request: CreateChargeDto, idempotencyKey: string): Promise<CreateChargeResult> {
     const requestHash = this.canonicalHash(request as unknown as Record<string, unknown>);
@@ -29,8 +36,22 @@ export class CreateChargeService {
 
     if (existingRecord) {
       if (existingRecord.requestHash !== requestHash) {
+        this.logger.warn({
+          what: 'idempotency_conflict',
+          why: 'key_reused_with_different_body',
+          how: 'POST /charges',
+          key: idempotencyKey,
+        });
         throw new IdempotencyConflictError(idempotencyKey);
       }
+
+      this.logger.log({
+        what: 'idempotency_cache_hit',
+        why: 'duplicate_request',
+        how: 'POST /charges',
+        charge_id: existingRecord.chargeId,
+      });
+
       return {
         data: existingRecord.responseBody as unknown as ChargeResponseDto,
         created: false,
@@ -59,6 +80,16 @@ export class CreateChargeService {
       expires_at: savedCharge.expiresAt,
       created_at: savedCharge.createdAt,
     };
+
+    this.logger.log({
+      what: 'charge_created',
+      why: 'user_request',
+      how: 'POST /charges',
+      who: request.payer_document,
+      charge_id: savedCharge.id,
+      amount: savedCharge.amount,
+      currency: savedCharge.currency,
+    });
 
     const idempotencyRecord = Object.assign(new IdempotencyKey(), {
       key: idempotencyKey,

@@ -5,12 +5,14 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { databaseConfig } from './config/database.config';
 import { ChargesModule } from './modules/charges/charges.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { LoggerModule } from './shared/logger/logger.module';
 import { DomainExceptionFilter } from './shared/filters/domain-exception.filter';
 import { CorrelationIdMiddleware } from './shared/middleware/correlation-id.middleware';
 
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({ useFactory: databaseConfig }),
+    LoggerModule,
     ChargesModule,
     WebhooksModule,
   ],

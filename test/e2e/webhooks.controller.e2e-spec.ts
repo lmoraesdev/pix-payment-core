@@ -7,6 +7,7 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ProcessWebhookService } from '@/modules/webhooks/application/process-webhook.service';
+import { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
 import { WebhookEventAlreadyProcessedError } from '@/modules/webhooks/domain/webhook-event-already-processed.error';
 import { WebhookEventRepository } from '@/modules/webhooks/infrastructure/webhook-event.repository';
 import { WebhooksController } from '@/modules/webhooks/presentation/webhooks.controller';
@@ -117,6 +118,7 @@ describe('WebhooksController (e2e)', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [WebhooksController],
       providers: [
+        StructuredLoggerService,
         ProcessWebhookService,
         { provide: ChargeRepository, useValue: chargeRepo },
         { provide: WebhookEventRepository, useValue: webhookEventRepo },
