@@ -5,6 +5,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ChargeStateMachine } from './charge-state-machine';
 import { ChargeStatus } from './charge-status.enum';
 
 @Entity('charges')
@@ -39,8 +40,7 @@ export class Charge {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 
-  transitionTo(_nextStatus: ChargeStatus): void {
-    // TODO: implement next session — delegates to ChargeStateMachine.assertTransition
-    throw new Error('Not implemented');
+  transitionTo(nextStatus: ChargeStatus): void {
+    this.status = new ChargeStateMachine(this.status).transitionTo(nextStatus);
   }
 }
