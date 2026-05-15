@@ -230,6 +230,10 @@ The domain layer has no NestJS or TypeORM imports. Business rules — including 
 - **TypeORM over Prisma.** Chosen to keep the stack close to what I use day-to-day. Prisma would be a natural next-step migration.
 - **5W1H logs.** Same format I've used in production. Makes log correlation across services trivial.
 
+## Error handling
+
+Every error response includes a machine-readable `code` field that clients can map programmatically — no string-parsing required. See the full [error codes catalog](docs/error-codes.md).
+
 ## API documentation
 
 The API is documented with OpenAPI 3 via `@nestjs/swagger`. Once the service is running, the interactive Swagger UI is available at:

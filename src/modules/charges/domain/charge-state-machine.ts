@@ -1,3 +1,5 @@
+import { DomainError } from '../../../shared/errors/domain.error';
+import { ErrorCode } from '../../../shared/errors/error-code.enum';
 import { ChargeStatus } from './charge-status.enum';
 
 const VALID_TRANSITIONS: Partial<Record<ChargeStatus, ChargeStatus[]>> = {
@@ -5,10 +7,9 @@ const VALID_TRANSITIONS: Partial<Record<ChargeStatus, ChargeStatus[]>> = {
   [ChargeStatus.AWAITING_PAYMENT]: [ChargeStatus.PAID, ChargeStatus.EXPIRED],
 };
 
-export class InvalidStateTransitionError extends Error {
+export class InvalidStateTransitionError extends DomainError {
   constructor(from: ChargeStatus, to: ChargeStatus) {
-    super(`Invalid transition: ${from} → ${to}`);
-    this.name = 'InvalidStateTransitionError';
+    super(`Invalid transition: ${from} → ${to}`, ErrorCode.INVALID_STATE_TRANSITION);
   }
 }
 
