@@ -5,10 +5,10 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { DomainError } from '../errors/domain.error';
-import { InvalidStateTransitionError } from '../../modules/charges/domain/charge-state-machine';
-import { ChargeNotFoundError } from '../../modules/charges/domain/charge-not-found.error';
-import { IdempotencyConflictError } from '../../modules/charges/domain/idempotency-conflict.error';
+import { DomainError } from '@/shared/errors/domain.error';
+import { InvalidStateTransitionError } from '@/modules/charges/domain/charge-state-machine';
+import { ChargeNotFoundError } from '@/modules/charges/domain/charge-not-found.error';
+import { IdempotencyConflictError } from '@/modules/charges/domain/idempotency-conflict.error';
 
 const STATUS_MAP = new Map<new (...args: never[]) => DomainError, HttpStatus>([
   [ChargeNotFoundError, HttpStatus.NOT_FOUND],

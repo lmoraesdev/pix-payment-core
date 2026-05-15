@@ -3,12 +3,12 @@ import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateChargeDto } from './dto/create-charge.dto';
 import { ChargeResponseDto } from './dto/charge-response.dto';
-import { Charge } from '../domain/charge.entity';
-import { ChargeStatus } from '../domain/charge-status.enum';
-import { IdempotencyConflictError } from '../domain/idempotency-conflict.error';
-import { IdempotencyKey } from '../infrastructure/idempotency-key.entity';
-import { ChargeRepository } from '../infrastructure/charge.repository';
-import { IdempotencyRepository } from '../infrastructure/idempotency.repository';
+import { Charge } from '@/modules/charges/domain/charge.entity';
+import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
+import { IdempotencyConflictError } from '@/modules/charges/domain/idempotency-conflict.error';
+import { IdempotencyKey } from '@/modules/charges/infrastructure/idempotency-key.entity';
+import { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
+import { IdempotencyRepository } from '@/modules/charges/infrastructure/idempotency.repository';
 
 export interface CreateChargeResult {
   data: ChargeResponseDto;

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ChargeResponseDto } from './dto/charge-response.dto';
-import { ChargeRepository } from '../infrastructure/charge.repository';
-import { ChargeNotFoundError } from '../domain/charge-not-found.error';
+import { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
+import { ChargeNotFoundError } from '@/modules/charges/domain/charge-not-found.error';
 
 @Injectable()
 export class GetChargeService {

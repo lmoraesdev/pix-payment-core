@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProcessWebhookService } from '../../src/modules/webhooks/application/process-webhook.service';
-import { WebhookEventAlreadyProcessedError } from '../../src/modules/webhooks/domain/webhook-event-already-processed.error';
-import { ChargeStateMachine, InvalidStateTransitionError } from '../../src/modules/charges/domain/charge-state-machine';
-import { ChargeNotFoundError } from '../../src/modules/charges/domain/charge-not-found.error';
-import { ChargeStatus } from '../../src/modules/charges/domain/charge-status.enum';
-import type { ChargeRepository } from '../../src/modules/charges/infrastructure/charge.repository';
-import type { WebhookEventRepository } from '../../src/modules/webhooks/infrastructure/webhook-event.repository';
-import type { Charge } from '../../src/modules/charges/domain/charge.entity';
-import type { WebhookEventDto } from '../../src/modules/webhooks/application/dto/webhook-event.dto';
+import { ProcessWebhookService } from '@/modules/webhooks/application/process-webhook.service';
+import { WebhookEventAlreadyProcessedError } from '@/modules/webhooks/domain/webhook-event-already-processed.error';
+import { ChargeStateMachine, InvalidStateTransitionError } from '@/modules/charges/domain/charge-state-machine';
+import { ChargeNotFoundError } from '@/modules/charges/domain/charge-not-found.error';
+import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
+import type { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
+import type { WebhookEventRepository } from '@/modules/webhooks/infrastructure/webhook-event.repository';
+import type { Charge } from '@/modules/charges/domain/charge.entity';
+import type { WebhookEventDto } from '@/modules/webhooks/application/dto/webhook-event.dto';
 
 function makeCharge(status: ChargeStatus): Charge {
   const charge = {

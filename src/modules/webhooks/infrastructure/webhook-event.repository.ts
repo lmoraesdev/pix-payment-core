@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { WebhookEvent } from '../domain/webhook-event.entity';
-import { WebhookEventAlreadyProcessedError } from '../domain/webhook-event-already-processed.error';
+import { WebhookEvent } from '@/modules/webhooks/domain/webhook-event.entity';
+import { WebhookEventAlreadyProcessedError } from '@/modules/webhooks/domain/webhook-event-already-processed.error';
 
 @Injectable()
 export class WebhookEventRepository {

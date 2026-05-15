@@ -17,10 +17,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Response } from 'express';
-import { CreateChargeService } from '../application/create-charge.service';
-import { ChargeResponseDto } from '../application/dto/charge-response.dto';
-import { CreateChargeDto } from '../application/dto/create-charge.dto';
-import { GetChargeService } from '../application/get-charge.service';
+import { CreateChargeService } from '@/modules/charges/application/create-charge.service';
+import { ChargeResponseDto } from '@/modules/charges/application/dto/charge-response.dto';
+import { CreateChargeDto } from '@/modules/charges/application/dto/create-charge.dto';
+import { GetChargeService } from '@/modules/charges/application/get-charge.service';
 
 @ApiTags('charges')
 @Controller('charges')
