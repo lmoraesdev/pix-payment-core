@@ -1,4 +1,5 @@
 import { Injectable, LoggerService } from '@nestjs/common';
+import { correlationIdStorage } from './correlation-id.storage';
 
 export interface LogPayload {
   what: string;
@@ -41,7 +42,7 @@ export class StructuredLoggerService implements LoggerService {
       level,
       where: this.context,
       ...payload,
-      correlation_id: null,
+      correlation_id: correlationIdStorage.getStore()?.correlationId ?? null,
       when: new Date().toISOString(),
     };
   }
