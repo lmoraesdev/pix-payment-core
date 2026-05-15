@@ -20,10 +20,9 @@ import type { Charge } from '../../src/modules/charges/domain/charge.entity';
 
 const TEST_SECRET = 'test-webhook-secret';
 
-function sign(body: object): string {
-  return createHmac('sha256', TEST_SECRET)
-    .update(JSON.stringify(body))
-    .digest('hex');
+/** Computes HMAC-SHA256 over the exact JSON string that will be sent on the wire. */
+function sign(rawJson: string): string {
+  return createHmac('sha256', TEST_SECRET).update(rawJson).digest('hex');
 }
 
 function makeCharge(id: string, status: ChargeStatus): Charge {
@@ -93,6 +92,15 @@ function expiredBody(chargeId: string, eventId = 'evt-002') {
   };
 }
 
+/** Sends a signed webhook request. rawJson is the exact bytes used for HMAC. */
+function signedPost(app: INestApplication, rawJson: string) {
+  return request(app.getHttpServer())
+    .post('/webhooks/provider')
+    .set('Content-Type', 'application/json')
+    .set('X-Webhook-Signature', sign(rawJson))
+    .send(rawJson);
+}
+
 // ─── Suite ────────────────────────────────────────────────────────────────────
 
 describe('WebhooksController (e2e)', () => {
@@ -117,7 +125,8 @@ describe('WebhooksController (e2e)', () => {
       ],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    // rawBody: true mirrors main.ts — needed so req.rawBody is populated for the guard
+    app = moduleRef.createNestApplication({ rawBody: true });
     await app.init();
   });
 
@@ -130,23 +139,25 @@ describe('WebhooksController (e2e)', () => {
   describe('assinatura HMAC', () => {
     it('retorna 401 sem header X-Webhook-Signature', async () => {
       chargeRepo.seed(makeCharge('charge-1', ChargeStatus.AWAITING_PAYMENT));
-      const body = confirmedBody('charge-1');
+      const rawJson = JSON.stringify(confirmedBody('charge-1'));
 
       const res = await request(app.getHttpServer())
         .post('/webhooks/provider')
-        .send(body);
+        .set('Content-Type', 'application/json')
+        .send(rawJson);
 
       expect(res.status).toBe(401);
     });
 
     it('retorna 401 com assinatura inválida', async () => {
       chargeRepo.seed(makeCharge('charge-1', ChargeStatus.AWAITING_PAYMENT));
-      const body = confirmedBody('charge-1');
+      const rawJson = JSON.stringify(confirmedBody('charge-1'));
 
       const res = await request(app.getHttpServer())
         .post('/webhooks/provider')
+        .set('Content-Type', 'application/json')
         .set('X-Webhook-Signature', 'assinatura-errada')
-        .send(body);
+        .send(rawJson);
 
       expect(res.status).toBe(401);
     });
@@ -158,12 +169,9 @@ describe('WebhooksController (e2e)', () => {
     it('retorna 200 e charge fica PAID', async () => {
       const charge = makeCharge('charge-1', ChargeStatus.AWAITING_PAYMENT);
       chargeRepo.seed(charge);
-      const body = confirmedBody('charge-1');
+      const rawJson = JSON.stringify(confirmedBody('charge-1'));
 
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/provider')
-        .set('X-Webhook-Signature', sign(body))
-        .send(body);
+      const res = await signedPost(app, rawJson);
 
       expect(res.status).toBe(200);
       expect(charge.status).toBe(ChargeStatus.PAID);
@@ -174,12 +182,9 @@ describe('WebhooksController (e2e)', () => {
     it('retorna 200 e charge fica EXPIRED', async () => {
       const charge = makeCharge('charge-1', ChargeStatus.AWAITING_PAYMENT);
       chargeRepo.seed(charge);
-      const body = expiredBody('charge-1');
+      const rawJson = JSON.stringify(expiredBody('charge-1'));
 
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/provider')
-        .set('X-Webhook-Signature', sign(body))
-        .send(body);
+      const res = await signedPost(app, rawJson);
 
       expect(res.status).toBe(200);
       expect(charge.status).toBe(ChargeStatus.EXPIRED);
@@ -190,21 +195,12 @@ describe('WebhooksController (e2e)', () => {
     it('retorna 200 e não altera o estado da charge na segunda chamada', async () => {
       const charge = makeCharge('charge-1', ChargeStatus.AWAITING_PAYMENT);
       chargeRepo.seed(charge);
-      const body = confirmedBody('charge-1', 'evt-dedup');
+      const rawJson = JSON.stringify(confirmedBody('charge-1', 'evt-dedup'));
 
-      await request(app.getHttpServer())
-        .post('/webhooks/provider')
-        .set('X-Webhook-Signature', sign(body))
-        .send(body)
-        .expect(200);
-
+      await signedPost(app, rawJson).expect(200);
       expect(charge.status).toBe(ChargeStatus.PAID);
 
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/provider')
-        .set('X-Webhook-Signature', sign(body))
-        .send(body);
-
+      const res = await signedPost(app, rawJson);
       expect(res.status).toBe(200);
       // status não reverteu — a charge continua PAID após o replay
       expect(charge.status).toBe(ChargeStatus.PAID);
@@ -213,12 +209,9 @@ describe('WebhooksController (e2e)', () => {
 
   describe('charge inexistente', () => {
     it('retorna 404 quando charge_id não existe no repositório', async () => {
-      const body = confirmedBody('charge-nao-existe');
+      const rawJson = JSON.stringify(confirmedBody('charge-nao-existe'));
 
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/provider')
-        .set('X-Webhook-Signature', sign(body))
-        .send(body);
+      const res = await signedPost(app, rawJson);
 
       expect(res.status).toBe(404);
     });
@@ -227,12 +220,9 @@ describe('WebhooksController (e2e)', () => {
   describe('transição de estado inválida', () => {
     it('retorna 409 ao enviar payment.expired para charge já PAID', async () => {
       chargeRepo.seed(makeCharge('charge-1', ChargeStatus.PAID));
-      const body = expiredBody('charge-1', 'evt-invalid-transition');
+      const rawJson = JSON.stringify(expiredBody('charge-1', 'evt-invalid-transition'));
 
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/provider')
-        .set('X-Webhook-Signature', sign(body))
-        .send(body);
+      const res = await signedPost(app, rawJson);
 
       expect(res.status).toBe(409);
     });
@@ -242,12 +232,13 @@ describe('WebhooksController (e2e)', () => {
 
   describe('validação de payload (Zod)', () => {
     it('retorna 400 para body sem charge_id', async () => {
-      const body = { event_id: 'evt-bad', type: 'payment.confirmed', occurred_at: '2026-01-02T00:00:00Z' };
+      const rawJson = JSON.stringify({
+        event_id: 'evt-bad',
+        type: 'payment.confirmed',
+        occurred_at: '2026-01-02T00:00:00Z',
+      });
 
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/provider')
-        .set('X-Webhook-Signature', sign(body))
-        .send(body);
+      const res = await signedPost(app, rawJson);
 
       expect(res.status).toBe(400);
     });
@@ -257,17 +248,14 @@ describe('WebhooksController (e2e)', () => {
       // Qualquer outro valor é rejeitado pelo ZodValidationPipe antes de chegar ao service —
       // por isso 400 (falha de validação de entrada), e não 422 (conflito de negócio) nem
       // 500 (erro não tratado do map interno do service).
-      const body = {
+      const rawJson = JSON.stringify({
         event_id: 'evt-unknown',
         type: 'payment.refunded',
         charge_id: 'charge-1',
         occurred_at: '2026-01-02T00:00:00Z',
-      };
+      });
 
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/provider')
-        .set('X-Webhook-Signature', sign(body))
-        .send(body);
+      const res = await signedPost(app, rawJson);
 
       expect(res.status).toBe(400);
     });
