@@ -45,9 +45,7 @@ describe('GetChargeService', () => {
   it('lança ChargeNotFoundError quando a charge não existe', async () => {
     chargeRepo.findById.mockResolvedValue(null);
 
-    await expect(service.execute('id-inexistente')).rejects.toThrow(
-      ChargeNotFoundError,
-    );
+    await expect(service.execute('id-inexistente')).rejects.toThrow(ChargeNotFoundError);
   });
 
   it('o erro carrega o id da charge não encontrada', async () => {

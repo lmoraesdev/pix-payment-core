@@ -11,12 +11,7 @@ import { ChargesController } from './presentation/charges.controller';
 @Module({
   imports: [TypeOrmModule.forFeature([Charge, IdempotencyKey])],
   controllers: [ChargesController],
-  providers: [
-    ChargeRepository,
-    IdempotencyRepository,
-    CreateChargeService,
-    GetChargeService,
-  ],
+  providers: [ChargeRepository, IdempotencyRepository, CreateChargeService, GetChargeService],
   exports: [ChargeRepository],
 })
 export class ChargesModule {}

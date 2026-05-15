@@ -10,12 +10,7 @@ import {
   Post,
   Res,
 } from '@nestjs/common';
-import {
-  ApiHeader,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { CreateChargeService } from '@/modules/charges/application/create-charge.service';
 import { ChargeResponseDto } from '@/modules/charges/application/dto/charge-response.dto';
@@ -56,10 +51,7 @@ export class ChargesController {
       throw new BadRequestException('Idempotency-Key header is required');
     }
 
-    const { data, created } = await this.createChargeService.execute(
-      dto,
-      idempotencyKey,
-    );
+    const { data, created } = await this.createChargeService.execute(dto, idempotencyKey);
 
     res.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     return data;

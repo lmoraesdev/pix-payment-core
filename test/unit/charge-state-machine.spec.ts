@@ -31,9 +31,9 @@ describe('ChargeStateMachine', () => {
       [ChargeStatus.CREATED, ChargeStatus.EXPIRED],
       [ChargeStatus.AWAITING_PAYMENT, ChargeStatus.CREATED],
     ] as const)('%s → %s lança InvalidStateTransitionError', (from, to) => {
-      expect(() =>
-        new ChargeStateMachine(from).transitionTo(to),
-      ).toThrow(InvalidStateTransitionError);
+      expect(() => new ChargeStateMachine(from).transitionTo(to)).toThrow(
+        InvalidStateTransitionError,
+      );
     });
   });
 
@@ -46,25 +46,25 @@ describe('ChargeStateMachine', () => {
 
   describe('self-transition é inválida em qualquer estado', () => {
     it.each(Object.values(ChargeStatus))('%s → %s lança', (status) => {
-      expect(() =>
-        new ChargeStateMachine(status).transitionTo(status),
-      ).toThrow(InvalidStateTransitionError);
+      expect(() => new ChargeStateMachine(status).transitionTo(status)).toThrow(
+        InvalidStateTransitionError,
+      );
     });
   });
 
   describe('estado terminal: PAID — nenhuma saída permitida', () => {
     it.each(Object.values(ChargeStatus))('PAID → %s lança', (to) => {
-      expect(() =>
-        new ChargeStateMachine(ChargeStatus.PAID).transitionTo(to),
-      ).toThrow(InvalidStateTransitionError);
+      expect(() => new ChargeStateMachine(ChargeStatus.PAID).transitionTo(to)).toThrow(
+        InvalidStateTransitionError,
+      );
     });
   });
 
   describe('estado terminal: EXPIRED — nenhuma saída permitida', () => {
     it.each(Object.values(ChargeStatus))('EXPIRED → %s lança', (to) => {
-      expect(() =>
-        new ChargeStateMachine(ChargeStatus.EXPIRED).transitionTo(to),
-      ).toThrow(InvalidStateTransitionError);
+      expect(() => new ChargeStateMachine(ChargeStatus.EXPIRED).transitionTo(to)).toThrow(
+        InvalidStateTransitionError,
+      );
     });
   });
 });
