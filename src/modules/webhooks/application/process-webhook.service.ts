@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ChargeNotFoundError } from '../../charges/domain/charge-not-found.error';
-import { ChargeStatus } from '../../charges/domain/charge-status.enum';
-import { ChargeRepository } from '../../charges/infrastructure/charge.repository';
-import { WebhookEventAlreadyProcessedError } from '../domain/webhook-event-already-processed.error';
-import { WebhookEventRepository } from '../infrastructure/webhook-event.repository';
+import { ChargeNotFoundError } from '@/modules/charges/domain/charge-not-found.error';
+import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
+import { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
+import { WebhookEventAlreadyProcessedError } from '@/modules/webhooks/domain/webhook-event-already-processed.error';
+import { WebhookEventRepository } from '@/modules/webhooks/infrastructure/webhook-event.repository';
 import { WebhookEventDto } from './dto/webhook-event.dto';
 
 const EVENT_TYPE_TO_STATUS: Record<string, ChargeStatus> = {

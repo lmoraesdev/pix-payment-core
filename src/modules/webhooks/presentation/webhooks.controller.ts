@@ -12,9 +12,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { WebhookSignatureGuard } from '../../../shared/guards/webhook-signature.guard';
-import { WebhookEventDto } from '../application/dto/webhook-event.dto';
-import { ProcessWebhookService } from '../application/process-webhook.service';
+import { WebhookSignatureGuard } from '@/shared/guards/webhook-signature.guard';
+import { WebhookEventDto } from '@/modules/webhooks/application/dto/webhook-event.dto';
+import { ProcessWebhookService } from '@/modules/webhooks/application/process-webhook.service';
 
 @ApiTags('webhooks')
 @Controller('webhooks')

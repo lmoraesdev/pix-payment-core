@@ -1,4 +1,4 @@
-import { ChargeStatus } from '../../domain/charge-status.enum';
+import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
 
 export class ChargeResponseDto {
   id!: string;

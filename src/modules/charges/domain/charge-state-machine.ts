@@ -1,5 +1,5 @@
-import { DomainError } from '../../../shared/errors/domain.error';
-import { ErrorCode } from '../../../shared/errors/error-code.enum';
+import { DomainError } from '@/shared/errors/domain.error';
+import { ErrorCode } from '@/shared/errors/error-code.enum';
 import { ChargeStatus } from './charge-status.enum';
 
 const VALID_TRANSITIONS: Partial<Record<ChargeStatus, ChargeStatus[]>> = {

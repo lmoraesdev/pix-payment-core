@@ -1,7 +1,7 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { Charge } from '../modules/charges/domain/charge.entity';
-import { IdempotencyKey } from '../modules/charges/infrastructure/idempotency-key.entity';
-import { WebhookEvent } from '../modules/webhooks/domain/webhook-event.entity';
+import { Charge } from '@/modules/charges/domain/charge.entity';
+import { IdempotencyKey } from '@/modules/charges/infrastructure/idempotency-key.entity';
+import { WebhookEvent } from '@/modules/webhooks/domain/webhook-event.entity';
 
 export const databaseConfig = (): TypeOrmModuleOptions => ({
   type: 'postgres',
