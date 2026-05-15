@@ -171,10 +171,18 @@ describe('ChargesController (e2e)', () => {
 
     it('retorna 404 quando a charge não existe', async () => {
       const res = await request(app.getHttpServer()).get(
-        '/charges/id-inexistente',
+        '/charges/00000000-0000-4000-8000-000000000000',
       );
 
       expect(res.status).toBe(404);
+    });
+
+    it('retorna 400 quando o id não é um UUID válido', async () => {
+      const res = await request(app.getHttpServer()).get(
+        '/charges/id-invalido',
+      );
+
+      expect(res.status).toBe(400);
     });
   });
 });
