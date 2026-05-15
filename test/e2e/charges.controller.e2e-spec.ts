@@ -1,7 +1,8 @@
 import { INestApplication } from '@nestjs/common';
-import { APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ZodValidationPipe } from 'nestjs-zod';
+import { DomainExceptionFilter } from '../../src/shared/filters/domain-exception.filter';
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -59,6 +60,7 @@ describe('ChargesController (e2e)', () => {
         { provide: ChargeRepository, useClass: InMemoryChargeRepository },
         { provide: IdempotencyRepository, useClass: InMemoryIdempotencyRepository },
         { provide: APP_PIPE, useClass: ZodValidationPipe },
+        { provide: APP_FILTER, useClass: DomainExceptionFilter },
       ],
     }).compile();
 

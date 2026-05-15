@@ -1,7 +1,18 @@
-import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
-import { CreateChargeDto } from '../application/dto/create-charge.dto';
-import { ChargeResponseDto } from '../application/dto/charge-response.dto';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpStatus,
+  Param,
+  Post,
+  Res,
+} from '@nestjs/common';
+import { Response } from 'express';
 import { CreateChargeService } from '../application/create-charge.service';
+import { ChargeResponseDto } from '../application/dto/charge-response.dto';
+import { CreateChargeDto } from '../application/dto/create-charge.dto';
 import { GetChargeService } from '../application/get-charge.service';
 
 @Controller('charges')
@@ -12,11 +23,22 @@ export class ChargesController {
   ) {}
 
   @Post()
-  create(
+  async create(
     @Body() dto: CreateChargeDto,
-    @Headers('idempotency-key') idempotencyKey: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<ChargeResponseDto> {
-    return this.createChargeService.execute(dto, idempotencyKey);
+    if (!idempotencyKey) {
+      throw new BadRequestException('Idempotency-Key header is required');
+    }
+
+    const { data, created } = await this.createChargeService.execute(
+      dto,
+      idempotencyKey,
+    );
+
+    res.status(created ? HttpStatus.CREATED : HttpStatus.OK);
+    return data;
   }
 
   @Get(':id')

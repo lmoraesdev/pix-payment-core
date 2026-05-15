@@ -90,10 +90,16 @@ describe('CreateChargeService', () => {
       expect(record.responseBody).toMatchObject({ id: 'charge-uuid-1' });
     });
 
-    it('retorna ChargeResponseDto com status AWAITING_PAYMENT', async () => {
+    it('retorna created: true na primeira chamada', async () => {
       const result = await service.execute(dto, KEY);
-      expect(result.id).toBe('charge-uuid-1');
-      expect(result.status).toBe(ChargeStatus.AWAITING_PAYMENT);
+      expect(result.created).toBe(true);
+    });
+
+    it('retorna ChargeResponseDto com status AWAITING_PAYMENT e created: true', async () => {
+      const result = await service.execute(dto, KEY);
+      expect(result.data.id).toBe('charge-uuid-1');
+      expect(result.data.status).toBe(ChargeStatus.AWAITING_PAYMENT);
+      expect(result.created).toBe(true);
     });
   });
 
@@ -112,7 +118,8 @@ describe('CreateChargeService', () => {
 
       expect(chargeRepo.save).not.toHaveBeenCalled();
       expect(idempotencyRepo.save).not.toHaveBeenCalled();
-      expect(result).toEqual(cachedResponse);
+      expect(result.data).toEqual(cachedResponse);
+      expect(result.created).toBe(false);
     });
   });
 
