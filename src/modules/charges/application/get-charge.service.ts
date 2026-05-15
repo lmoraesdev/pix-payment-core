@@ -1,12 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { ChargeResponseDto } from './dto/charge-response.dto';
+import { ChargeRepository } from '../infrastructure/charge.repository';
+import { ChargeNotFoundError } from '../domain/charge-not-found.error';
 
 @Injectable()
 export class GetChargeService {
-  async execute(_id: string): Promise<ChargeResponseDto> {
-    // TODO: implement next session
-    // 1. ChargeRepository.findById (throw 404 if not found)
-    // 2. Map Charge → ChargeResponseDto
-    throw new Error('Not implemented');
+  constructor(private readonly chargeRepository: ChargeRepository) {}
+
+  async execute(id: string): Promise<ChargeResponseDto> {
+    const charge = await this.chargeRepository.findById(id);
+    if (!charge) {
+      throw new ChargeNotFoundError(id);
+    }
+    return {
+      id: charge.id,
+      status: charge.status,
+      amount: charge.amount,
+      currency: charge.currency,
+      qr_code: charge.qrCode,
+      expires_at: charge.expiresAt,
+      created_at: charge.createdAt,
+    };
   }
 }
