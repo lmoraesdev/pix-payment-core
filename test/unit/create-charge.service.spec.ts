@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { CreateChargeService } from '@/modules/charges/application/create-charge.service';
 import { IdempotencyConflictError } from '@/modules/charges/domain/idempotency-conflict.error';
 import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
+import type { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
 import type { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
 import type { IdempotencyRepository } from '@/modules/charges/infrastructure/idempotency.repository';
 import type { CreateChargeDto } from '@/modules/charges/application/dto/create-charge.dto';
@@ -50,6 +51,14 @@ const cachedResponse: ChargeResponseDto = {
   created_at: new Date('2026-01-01'),
 };
 
+const mockLogger = {
+  forContext: vi.fn().mockReturnThis(),
+  log: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+};
+
 describe('CreateChargeService', () => {
   let service: CreateChargeService;
   let chargeRepo: { save: ReturnType<typeof vi.fn> };
@@ -59,11 +68,13 @@ describe('CreateChargeService', () => {
   };
 
   beforeEach(() => {
+    vi.clearAllMocks();
     chargeRepo = { save: vi.fn() };
     idempotencyRepo = { findByKey: vi.fn(), save: vi.fn() };
     service = new CreateChargeService(
       chargeRepo as unknown as ChargeRepository,
       idempotencyRepo as unknown as IdempotencyRepository,
+      mockLogger as unknown as StructuredLoggerService,
     );
   });
 
@@ -93,6 +104,13 @@ describe('CreateChargeService', () => {
       expect(result.created).toBe(true);
     });
 
+    it('emite log charge_created', async () => {
+      await service.execute(dto, KEY);
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        expect.objectContaining({ what: 'charge_created', charge_id: 'charge-uuid-1' }),
+      );
+    });
+
     it('retorna ChargeResponseDto com status AWAITING_PAYMENT e created: true', async () => {
       const result = await service.execute(dto, KEY);
       expect(result.data.id).toBe('charge-uuid-1');
@@ -118,6 +136,9 @@ describe('CreateChargeService', () => {
       expect(idempotencyRepo.save).not.toHaveBeenCalled();
       expect(result.data).toEqual(cachedResponse);
       expect(result.created).toBe(false);
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        expect.objectContaining({ what: 'idempotency_cache_hit' }),
+      );
     });
   });
 
@@ -147,6 +168,13 @@ describe('CreateChargeService', () => {
       await expect(service.execute(dto, KEY)).rejects.toThrow(IdempotencyConflictError);
       expect(chargeRepo.save).not.toHaveBeenCalled();
       expect(idempotencyRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('emite warn idempotency_conflict', async () => {
+      await expect(service.execute(dto, KEY)).rejects.toThrow(IdempotencyConflictError);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ what: 'idempotency_conflict', key: KEY }),
+      );
     });
   });
 

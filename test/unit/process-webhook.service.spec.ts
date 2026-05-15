@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProcessWebhookService } from '@/modules/webhooks/application/process-webhook.service';
+import type { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
 import { WebhookEventAlreadyProcessedError } from '@/modules/webhooks/domain/webhook-event-already-processed.error';
 import {
   ChargeStateMachine,
@@ -48,6 +49,14 @@ function makeDto(
   } as unknown as WebhookEventDto;
 }
 
+const mockLogger = {
+  forContext: vi.fn().mockReturnThis(),
+  log: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+};
+
 describe('ProcessWebhookService', () => {
   let service: ProcessWebhookService;
   let chargeRepo: {
@@ -59,11 +68,13 @@ describe('ProcessWebhookService', () => {
   };
 
   beforeEach(() => {
+    vi.clearAllMocks();
     chargeRepo = { findById: vi.fn(), save: vi.fn() };
     webhookEventRepo = { markAsProcessed: vi.fn() };
     service = new ProcessWebhookService(
       chargeRepo as unknown as ChargeRepository,
       webhookEventRepo as unknown as WebhookEventRepository,
+      mockLogger as unknown as StructuredLoggerService,
     );
   });
 
@@ -77,6 +88,9 @@ describe('ProcessWebhookService', () => {
 
       const [saved] = chargeRepo.save.mock.calls[0] as [Charge];
       expect(saved.status).toBe(ChargeStatus.PAID);
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        expect.objectContaining({ what: 'charge_state_transitioned', to: ChargeStatus.PAID }),
+      );
     });
   });
 
@@ -103,6 +117,9 @@ describe('ProcessWebhookService', () => {
 
       expect(chargeRepo.findById).not.toHaveBeenCalled();
       expect(chargeRepo.save).not.toHaveBeenCalled();
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        expect.objectContaining({ what: 'webhook_already_processed' }),
+      );
     });
   });
 

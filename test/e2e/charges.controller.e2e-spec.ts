@@ -14,6 +14,7 @@ import { ChargeRepository } from '@/modules/charges/infrastructure/charge.reposi
 import { IdempotencyKey } from '@/modules/charges/infrastructure/idempotency-key.entity';
 import { IdempotencyRepository } from '@/modules/charges/infrastructure/idempotency.repository';
 import { ChargesController } from '@/modules/charges/presentation/charges.controller';
+import { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
 
 class InMemoryChargeRepository {
   private store = new Map<string, Charge>();
@@ -55,6 +56,7 @@ describe('ChargesController (e2e)', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [ChargesController],
       providers: [
+        StructuredLoggerService,
         CreateChargeService,
         GetChargeService,
         { provide: ChargeRepository, useClass: InMemoryChargeRepository },
