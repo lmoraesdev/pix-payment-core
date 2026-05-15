@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProcessWebhookService } from '../../src/modules/webhooks/application/process-webhook.service';
 import { WebhookEventAlreadyProcessedError } from '../../src/modules/webhooks/domain/webhook-event-already-processed.error';
-import { InvalidStateTransitionError } from '../../src/modules/charges/domain/charge-state-machine';
+import { ChargeStateMachine, InvalidStateTransitionError } from '../../src/modules/charges/domain/charge-state-machine';
 import { ChargeNotFoundError } from '../../src/modules/charges/domain/charge-not-found.error';
 import { ChargeStatus } from '../../src/modules/charges/domain/charge-status.enum';
 import type { ChargeRepository } from '../../src/modules/charges/infrastructure/charge.repository';
@@ -10,7 +10,7 @@ import type { Charge } from '../../src/modules/charges/domain/charge.entity';
 import type { WebhookEventDto } from '../../src/modules/webhooks/application/dto/webhook-event.dto';
 
 function makeCharge(status: ChargeStatus): Charge {
-  return {
+  const charge = {
     id: 'charge-uuid-1',
     status,
     amount: 10000,
@@ -21,8 +21,11 @@ function makeCharge(status: ChargeStatus): Charge {
     expiresAt: null,
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
-    transitionTo: () => { throw new Error('Not implemented'); },
-  } as unknown as Charge;
+  } as Partial<Charge>;
+  charge.transitionTo = (next: ChargeStatus): void => {
+    charge.status = new ChargeStateMachine(charge.status!).transitionTo(next);
+  };
+  return charge as Charge;
 }
 
 function makeDto(
