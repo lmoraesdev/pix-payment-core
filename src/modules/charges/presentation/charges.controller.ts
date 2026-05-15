@@ -1,9 +1,28 @@
-import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
-import { CreateChargeDto } from '../application/dto/create-charge.dto';
-import { ChargeResponseDto } from '../application/dto/charge-response.dto';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Res,
+} from '@nestjs/common';
+import {
+  ApiHeader,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Response } from 'express';
 import { CreateChargeService } from '../application/create-charge.service';
+import { ChargeResponseDto } from '../application/dto/charge-response.dto';
+import { CreateChargeDto } from '../application/dto/create-charge.dto';
 import { GetChargeService } from '../application/get-charge.service';
 
+@ApiTags('charges')
 @Controller('charges')
 export class ChargesController {
   constructor(
@@ -12,15 +31,48 @@ export class ChargesController {
   ) {}
 
   @Post()
-  create(
+  @ApiOperation({
+    summary: 'Create a Pix charge',
+    description:
+      'Creates a new charge. Requires Idempotency-Key header. ' +
+      'Retrying with the same key and body returns the original response (200). ' +
+      'Same key with different body returns 422.',
+  })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    description: 'Unique key to make the request idempotent',
+  })
+  @ApiResponse({ status: 201, description: 'Charge created' })
+  @ApiResponse({ status: 200, description: 'Idempotent retry — cached response' })
+  @ApiResponse({ status: 400, description: 'Missing Idempotency-Key or invalid body' })
+  @ApiResponse({ status: 422, description: 'Idempotency-Key reused with different body' })
+  async create(
     @Body() dto: CreateChargeDto,
-    @Headers('idempotency-key') idempotencyKey: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<ChargeResponseDto> {
-    return this.createChargeService.execute(dto, idempotencyKey);
+    if (!idempotencyKey) {
+      throw new BadRequestException('Idempotency-Key header is required');
+    }
+
+    const { data, created } = await this.createChargeService.execute(
+      dto,
+      idempotencyKey,
+    );
+
+    res.status(created ? HttpStatus.CREATED : HttpStatus.OK);
+    return data;
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<ChargeResponseDto> {
+  @ApiOperation({ summary: 'Get a charge by id' })
+  @ApiResponse({ status: 200, description: 'Charge found' })
+  @ApiResponse({ status: 400, description: 'Invalid UUID format' })
+  @ApiResponse({ status: 404, description: 'Charge not found' })
+  findOne(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<ChargeResponseDto> {
     return this.getChargeService.execute(id);
   }
 }

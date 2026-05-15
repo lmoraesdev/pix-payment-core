@@ -10,6 +10,11 @@ import { IdempotencyKey } from '../infrastructure/idempotency-key.entity';
 import { ChargeRepository } from '../infrastructure/charge.repository';
 import { IdempotencyRepository } from '../infrastructure/idempotency.repository';
 
+export interface CreateChargeResult {
+  data: ChargeResponseDto;
+  created: boolean;
+}
+
 @Injectable()
 export class CreateChargeService {
   constructor(
@@ -20,7 +25,7 @@ export class CreateChargeService {
   async execute(
     request: CreateChargeDto,
     idempotencyKey: string,
-  ): Promise<ChargeResponseDto> {
+  ): Promise<CreateChargeResult> {
     const requestHash = this.canonicalHash(
       request as unknown as Record<string, unknown>,
     );
@@ -32,7 +37,10 @@ export class CreateChargeService {
       if (existingRecord.requestHash !== requestHash) {
         throw new IdempotencyConflictError(idempotencyKey);
       }
-      return existingRecord.responseBody as unknown as ChargeResponseDto;
+      return {
+        data: existingRecord.responseBody as unknown as ChargeResponseDto,
+        created: false,
+      };
     }
 
     const newCharge = Object.assign(new Charge(), {
@@ -67,7 +75,7 @@ export class CreateChargeService {
 
     await this.idempotencyRepository.save(idempotencyRecord);
 
-    return response;
+    return { data: response, created: true };
   }
 
   /**
