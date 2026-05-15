@@ -1,9 +1,4 @@
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpStatus,
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 import { DomainError } from '@/shared/errors/domain.error';
 import { InvalidStateTransitionError } from '@/modules/charges/domain/charge-state-machine';
@@ -19,9 +14,7 @@ const STATUS_MAP = new Map<new (...args: never[]) => DomainError, HttpStatus>([
 @Catch(ChargeNotFoundError, IdempotencyConflictError, InvalidStateTransitionError)
 export class DomainExceptionFilter implements ExceptionFilter {
   catch(exception: DomainError, host: ArgumentsHost): void {
-    const status = STATUS_MAP.get(
-      exception.constructor as new (...args: never[]) => DomainError,
-    )!;
+    const status = STATUS_MAP.get(exception.constructor as new (...args: never[]) => DomainError)!;
 
     host
       .switchToHttp()

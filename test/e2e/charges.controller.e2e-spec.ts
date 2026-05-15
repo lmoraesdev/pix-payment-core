@@ -89,9 +89,7 @@ describe('ChargesController (e2e)', () => {
     });
 
     it('retorna 400 quando o header Idempotency-Key está ausente', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/charges')
-        .send(validBody);
+      const res = await request(app.getHttpServer()).post('/charges').send(validBody);
 
       expect(res.status).toBe(400);
     });
@@ -180,9 +178,7 @@ describe('ChargesController (e2e)', () => {
     });
 
     it('retorna 400 quando o id não é um UUID válido', async () => {
-      const res = await request(app.getHttpServer()).get(
-        '/charges/id-invalido',
-      );
+      const res = await request(app.getHttpServer()).get('/charges/id-invalido');
 
       expect(res.status).toBe(400);
     });

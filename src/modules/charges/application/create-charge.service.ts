@@ -22,16 +22,10 @@ export class CreateChargeService {
     private readonly idempotencyRepository: IdempotencyRepository,
   ) {}
 
-  async execute(
-    request: CreateChargeDto,
-    idempotencyKey: string,
-  ): Promise<CreateChargeResult> {
-    const requestHash = this.canonicalHash(
-      request as unknown as Record<string, unknown>,
-    );
+  async execute(request: CreateChargeDto, idempotencyKey: string): Promise<CreateChargeResult> {
+    const requestHash = this.canonicalHash(request as unknown as Record<string, unknown>);
 
-    const existingRecord =
-      await this.idempotencyRepository.findByKey(idempotencyKey);
+    const existingRecord = await this.idempotencyRepository.findByKey(idempotencyKey);
 
     if (existingRecord) {
       if (existingRecord.requestHash !== requestHash) {

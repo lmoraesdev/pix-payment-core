@@ -84,9 +84,7 @@ describe('CreateChargeService', () => {
 
       const [record] = idempotencyRepo.save.mock.calls[0] as [IdempotencyKey];
       expect(record.key).toBe(KEY);
-      expect(record.requestHash).toBe(
-        canonicalHash(dto as unknown as Record<string, unknown>),
-      );
+      expect(record.requestHash).toBe(canonicalHash(dto as unknown as Record<string, unknown>));
       expect(record.responseBody).toMatchObject({ id: 'charge-uuid-1' });
     });
 
@@ -135,9 +133,7 @@ describe('CreateChargeService', () => {
     });
 
     it('lança IdempotencyConflictError', async () => {
-      await expect(service.execute(dto, KEY)).rejects.toThrow(
-        IdempotencyConflictError,
-      );
+      await expect(service.execute(dto, KEY)).rejects.toThrow(IdempotencyConflictError);
     });
 
     it('o erro expõe a key conflitante', async () => {
@@ -148,9 +144,7 @@ describe('CreateChargeService', () => {
     });
 
     it('não cria charge nem persiste key quando há conflito', async () => {
-      await expect(service.execute(dto, KEY)).rejects.toThrow(
-        IdempotencyConflictError,
-      );
+      await expect(service.execute(dto, KEY)).rejects.toThrow(IdempotencyConflictError);
       expect(chargeRepo.save).not.toHaveBeenCalled();
       expect(idempotencyRepo.save).not.toHaveBeenCalled();
     });
@@ -176,8 +170,7 @@ describe('CreateChargeService', () => {
       } as unknown as CreateChargeDto;
 
       await service.execute(dtoOrdemA, 'key-a');
-      const hashA = (idempotencyRepo.save.mock.calls[0][0] as IdempotencyKey)
-        .requestHash;
+      const hashA = (idempotencyRepo.save.mock.calls[0][0] as IdempotencyKey).requestHash;
 
       vi.clearAllMocks();
       idempotencyRepo.findByKey.mockResolvedValue(null);
@@ -185,8 +178,7 @@ describe('CreateChargeService', () => {
       idempotencyRepo.save.mockImplementation(async (r: IdempotencyKey) => r);
 
       await service.execute(dtoOrdemB, 'key-b');
-      const hashB = (idempotencyRepo.save.mock.calls[0][0] as IdempotencyKey)
-        .requestHash;
+      const hashB = (idempotencyRepo.save.mock.calls[0][0] as IdempotencyKey).requestHash;
 
       expect(hashA).toBe(hashB);
     });
@@ -202,8 +194,7 @@ describe('CreateChargeService', () => {
       } as unknown as CreateChargeDto;
 
       await service.execute(dtoA, 'key-a');
-      const hashA = (idempotencyRepo.save.mock.calls[0][0] as IdempotencyKey)
-        .requestHash;
+      const hashA = (idempotencyRepo.save.mock.calls[0][0] as IdempotencyKey).requestHash;
 
       vi.clearAllMocks();
       idempotencyRepo.findByKey.mockResolvedValue(null);
@@ -211,8 +202,7 @@ describe('CreateChargeService', () => {
       idempotencyRepo.save.mockImplementation(async (r: IdempotencyKey) => r);
 
       await service.execute(dtoB, 'key-b');
-      const hashB = (idempotencyRepo.save.mock.calls[0][0] as IdempotencyKey)
-        .requestHash;
+      const hashB = (idempotencyRepo.save.mock.calls[0][0] as IdempotencyKey).requestHash;
 
       expect(hashA).not.toBe(hashB);
     });

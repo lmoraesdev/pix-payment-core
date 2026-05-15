@@ -9,9 +9,7 @@ async function bootstrap(): Promise<void> {
 
   const config = new DocumentBuilder()
     .setTitle('Pix Payment Core')
-    .setDescription(
-      'Demo Pix payment system — idempotent charges, state machine, webhook dedup',
-    )
+    .setDescription('Demo Pix payment system — idempotent charges, state machine, webhook dedup')
     .setVersion('1.0')
     .build();
 

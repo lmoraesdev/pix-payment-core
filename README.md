@@ -4,6 +4,7 @@ A backend service that simulates a Pix payment provider — focused on the parts
 
 Built as a portable demo of the techniques I apply when working with real payment systems.
 
+![CI](https://github.com/lmoraesdev/pix-payment-core/actions/workflows/ci.yml/badge.svg)
 ![nodejs](https://img.shields.io/badge/Node.js-20-339933?logo=nodedotjs&logoColor=white)
 ![typescript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
 ![nestjs](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)

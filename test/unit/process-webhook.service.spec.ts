@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProcessWebhookService } from '@/modules/webhooks/application/process-webhook.service';
 import { WebhookEventAlreadyProcessedError } from '@/modules/webhooks/domain/webhook-event-already-processed.error';
-import { ChargeStateMachine, InvalidStateTransitionError } from '@/modules/charges/domain/charge-state-machine';
+import {
+  ChargeStateMachine,
+  InvalidStateTransitionError,
+} from '@/modules/charges/domain/charge-state-machine';
 import { ChargeNotFoundError } from '@/modules/charges/domain/charge-not-found.error';
 import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
 import type { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
@@ -127,9 +130,9 @@ describe('ProcessWebhookService', () => {
       webhookEventRepo.markAsProcessed.mockResolvedValue(undefined);
       chargeRepo.findById.mockResolvedValue(makeCharge(ChargeStatus.AWAITING_PAYMENT));
 
-      await expect(
-        service.execute(makeDto({ type: 'payment.refunded' as never })),
-      ).rejects.toThrow(Error);
+      await expect(service.execute(makeDto({ type: 'payment.refunded' as never }))).rejects.toThrow(
+        Error,
+      );
     });
   });
 
@@ -138,18 +141,18 @@ describe('ProcessWebhookService', () => {
       webhookEventRepo.markAsProcessed.mockResolvedValue(undefined);
       chargeRepo.findById.mockResolvedValue(makeCharge(ChargeStatus.PAID));
 
-      await expect(
-        service.execute(makeDto({ type: 'payment.expired' })),
-      ).rejects.toThrow(InvalidStateTransitionError);
+      await expect(service.execute(makeDto({ type: 'payment.expired' }))).rejects.toThrow(
+        InvalidStateTransitionError,
+      );
     });
 
     it('não persiste a charge quando a transição é inválida', async () => {
       webhookEventRepo.markAsProcessed.mockResolvedValue(undefined);
       chargeRepo.findById.mockResolvedValue(makeCharge(ChargeStatus.PAID));
 
-      await expect(
-        service.execute(makeDto({ type: 'payment.expired' })),
-      ).rejects.toThrow(InvalidStateTransitionError);
+      await expect(service.execute(makeDto({ type: 'payment.expired' }))).rejects.toThrow(
+        InvalidStateTransitionError,
+      );
 
       expect(chargeRepo.save).not.toHaveBeenCalled();
     });
