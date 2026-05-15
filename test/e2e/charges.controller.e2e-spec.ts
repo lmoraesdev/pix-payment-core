@@ -148,6 +148,7 @@ describe('ChargesController (e2e)', () => {
         .send({ ...validBody, amount: 99999 });
 
       expect(res.status).toBe(422);
+      expect(res.body.code).toBe('IDEMPOTENCY_CONFLICT');
     });
   });
 
@@ -175,6 +176,7 @@ describe('ChargesController (e2e)', () => {
       );
 
       expect(res.status).toBe(404);
+      expect(res.body.code).toBe('CHARGE_NOT_FOUND');
     });
 
     it('retorna 400 quando o id não é um UUID válido', async () => {
