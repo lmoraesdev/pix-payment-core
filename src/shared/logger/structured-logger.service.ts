@@ -39,11 +39,11 @@ export class StructuredLoggerService implements LoggerService {
 
   private build(level: string, payload: LogPayload): Record<string, unknown> {
     return {
+      when: new Date().toISOString(),
       level,
+      correlation_id: correlationIdStorage.getStore()?.correlationId ?? null,
       where: this.context,
       ...payload,
-      correlation_id: correlationIdStorage.getStore()?.correlationId ?? null,
-      when: new Date().toISOString(),
-    };
+    }
   }
 }

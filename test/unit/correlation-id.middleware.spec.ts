@@ -5,6 +5,7 @@ import {
   CORRELATION_ID_HEADER,
   CorrelationIdMiddleware,
 } from '@/shared/middleware/correlation-id.middleware';
+import { correlationIdStorage } from '@/shared/logger/correlation-id.storage';
 
 describe('CorrelationIdMiddleware', () => {
   let middleware: CorrelationIdMiddleware;
@@ -44,5 +45,28 @@ describe('CorrelationIdMiddleware', () => {
     middleware.use(req as unknown as Request, res as unknown as Response, next);
 
     expect(next).toHaveBeenCalled();
+  });
+
+  it('isola correlation_id entre requests concorrentes', async () => {
+    const captured: Record<string, string | undefined> = {};
+
+    const runRequest = (id: string, delay: number) =>
+      new Promise<void>((resolve) => {
+        middleware.use(
+          { headers: { [CORRELATION_ID_HEADER]: id } } as unknown as Request,
+          { setHeader: vi.fn() } as unknown as Response,
+          () => {
+            setTimeout(() => {
+              captured[id] = correlationIdStorage.getStore()?.correlationId;
+              resolve();
+            }, delay);
+          },
+        );
+      });
+
+    await Promise.all([runRequest('req-A', 10), runRequest('req-B', 5)]);
+
+    expect(captured['req-A']).toBe('req-A');
+    expect(captured['req-B']).toBe('req-B');
   });
 });
