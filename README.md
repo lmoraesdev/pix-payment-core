@@ -123,6 +123,10 @@ Retrying the same `Idempotency-Key` with the **same body** returns the original 
 
 Returns the current state of a charge.
 
+### GET /health
+
+Returns `{ "status": "ok" }` with 200. Used as a liveness probe by Docker Compose.
+
 ### POST /webhooks/provider
 
 Receives an event from the provider.
@@ -253,6 +257,7 @@ The domain layer has no NestJS or TypeORM imports. Business rules — including 
 - **Webhook dedup in Postgres, not Redis.** A unique constraint with `ON CONFLICT DO NOTHING` is enough at this scale. Adding Redis would be over-engineering for a demo.
 - **TypeORM over Prisma.** Chosen to keep the stack close to what I use day-to-day. Prisma would be a natural next-step migration.
 - **5W1H logs.** Same format I've used in production. Makes log correlation across services trivial.
+- **AsyncLocalStorage for correlation ID propagation.** The `CorrelationIdMiddleware` stores the ID once per request in an `AsyncLocalStorage` context; every service reads it automatically without needing it passed as a parameter. No NestJS request scope required.
 
 ## Error handling
 
@@ -269,6 +274,15 @@ http://localhost:3000/api/docs
 Every endpoint, DTO and response is annotated, so the docs always reflect the current code.
 
 ## Roadmap
+
+Shipped in MVP:
+
+- [x] Structured logging (5W1H) with correlation IDs via AsyncLocalStorage
+- [x] Machine-readable error codes catalog
+- [x] CI pipeline (GitHub Actions — lint, build, test on every push)
+- [x] Liveness probe (`GET /health`)
+
+Planned for v2:
 
 - [ ] Cancel and refund flows
 - [ ] Retry with exponential backoff (BullMQ + Redis)
