@@ -105,6 +105,15 @@ describe('ChargesController (e2e)', () => {
       expect(res.status).toBe(400);
     });
 
+    it('retorna 400 quando amount excede o limite inteiro (validação Zod)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/charges')
+        .set('Idempotency-Key', uuidv4())
+        .send({ ...validBody, amount: 2147483648 });
+
+      expect(res.status).toBe(400);
+    });
+
     it('retorna 400 quando currency está ausente (validação Zod)', async () => {
       const res = await request(app.getHttpServer())
         .post('/charges')
