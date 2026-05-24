@@ -216,7 +216,7 @@ describe('WebhooksController (e2e)', () => {
       const res = await signedPost(app, rawJson);
 
       expect(res.status).toBe(404);
-      expect(res.body.code).toBe('CHARGE_NOT_FOUND');
+      expect(res.body.code).toBe('AE01');
     });
   });
 
@@ -228,7 +228,7 @@ describe('WebhooksController (e2e)', () => {
       const res = await signedPost(app, rawJson);
 
       expect(res.status).toBe(409);
-      expect(res.body.code).toBe('INVALID_STATE_TRANSITION');
+      expect(res.body.code).toBe('AE03');
     });
   });
 

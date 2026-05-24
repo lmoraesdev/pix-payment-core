@@ -7,6 +7,7 @@ import { ChargesModule } from './modules/charges/charges.module';
 import { HealthModule } from './modules/health/health.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { LoggerModule } from './shared/logger/logger.module';
+import { GlobalExceptionFilter } from './shared/filters/global-exception.filter';
 import { DomainExceptionFilter } from './shared/filters/domain-exception.filter';
 import { CorrelationIdMiddleware } from './shared/middleware/correlation-id.middleware';
 
@@ -20,6 +21,9 @@ import { CorrelationIdMiddleware } from './shared/middleware/correlation-id.midd
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },
+    // GlobalExceptionFilter registered first — NestJS applies filters in reverse order,
+    // so DomainExceptionFilter runs first and GlobalExceptionFilter catches what's left.
+    { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_FILTER, useClass: DomainExceptionFilter },
   ],
 })

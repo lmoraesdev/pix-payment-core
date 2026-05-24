@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProcessWebhookService } from '@/modules/webhooks/application/process-webhook.service';
 import type { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
 import { WebhookEventAlreadyProcessedError } from '@/modules/webhooks/domain/webhook-event-already-processed.error';
+import { UnknownEventTypeError } from '@/modules/webhooks/domain/unknown-event-type.error';
 import {
   ChargeStateMachine,
   InvalidStateTransitionError,
@@ -143,12 +144,36 @@ describe('ProcessWebhookService', () => {
   });
 
   describe('tipo de evento desconhecido', () => {
-    it('lança erro para tipo não mapeado', async () => {
+    it('lança UnknownEventTypeError para tipo não mapeado', async () => {
       webhookEventRepo.markAsProcessed.mockResolvedValue(undefined);
       chargeRepo.findById.mockResolvedValue(makeCharge(ChargeStatus.AWAITING_PAYMENT));
 
       await expect(service.execute(makeDto({ type: 'payment.refunded' as never }))).rejects.toThrow(
-        Error,
+        UnknownEventTypeError,
+      );
+    });
+
+    it('o erro carrega o type desconhecido', async () => {
+      webhookEventRepo.markAsProcessed.mockResolvedValue(undefined);
+      chargeRepo.findById.mockResolvedValue(makeCharge(ChargeStatus.AWAITING_PAYMENT));
+
+      await expect(
+        service.execute(makeDto({ type: 'payment.refunded' as never })),
+      ).rejects.toSatisfy(
+        (e: unknown): e is UnknownEventTypeError =>
+          e instanceof UnknownEventTypeError && e.type === 'payment.refunded',
+      );
+    });
+
+    it('o error code é AE05', async () => {
+      webhookEventRepo.markAsProcessed.mockResolvedValue(undefined);
+      chargeRepo.findById.mockResolvedValue(makeCharge(ChargeStatus.AWAITING_PAYMENT));
+
+      await expect(
+        service.execute(makeDto({ type: 'payment.refunded' as never })),
+      ).rejects.toSatisfy(
+        (e: unknown): e is UnknownEventTypeError =>
+          e instanceof UnknownEventTypeError && e.code === 'AE05',
       );
     });
   });

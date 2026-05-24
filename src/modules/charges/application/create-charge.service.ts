@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 
 import { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
+import { DomainError } from '@/shared/errors/domain.error';
 import { Charge } from '@/modules/charges/domain/charge.entity';
 import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
 import { IdempotencyConflictError } from '@/modules/charges/domain/idempotency-conflict.error';
@@ -30,6 +31,25 @@ export class CreateChargeService {
   }
 
   async execute(request: CreateChargeDto, idempotencyKey: string): Promise<CreateChargeResult> {
+    try {
+      return await this._execute(request, idempotencyKey);
+    } catch (err) {
+      if (err instanceof DomainError) throw err;
+      this.logger.error(
+        {
+          what: 'create_charge_failed',
+          why: 'unexpected_error',
+          how: 'POST /charges',
+          key: idempotencyKey,
+          message: (err as Error).message,
+        },
+        (err as Error).stack,
+      );
+      throw err;
+    }
+  }
+
+  private async _execute(request: CreateChargeDto, idempotencyKey: string): Promise<CreateChargeResult> {
     const requestHash = this.canonicalHash(request as unknown as Record<string, unknown>);
 
     const existingRecord = await this.idempotencyRepository.findByKey(idempotencyKey);
