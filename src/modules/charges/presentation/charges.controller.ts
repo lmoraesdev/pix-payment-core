@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -15,6 +14,7 @@ import { Response } from 'express';
 import { CreateChargeService } from '@/modules/charges/application/create-charge.service';
 import { ChargeResponseDto } from '@/modules/charges/application/dto/charge-response.dto';
 import { CreateChargeDto } from '@/modules/charges/application/dto/create-charge.dto';
+import { MissingIdempotencyKeyError } from '@/modules/charges/domain/missing-idempotency-key.error';
 import { GetChargeService } from '@/modules/charges/application/get-charge.service';
 
 @ApiTags('charges')
@@ -47,9 +47,7 @@ export class ChargesController {
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ChargeResponseDto> {
-    if (!idempotencyKey) {
-      throw new BadRequestException('Idempotency-Key header is required');
-    }
+    if (!idempotencyKey) throw new MissingIdempotencyKeyError();
 
     const { data, created } = await this.createChargeService.execute(dto, idempotencyKey);
 
