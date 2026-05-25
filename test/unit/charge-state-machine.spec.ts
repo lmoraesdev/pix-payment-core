@@ -67,4 +67,39 @@ describe('ChargeStateMachine', () => {
       );
     });
   });
+
+  describe('tabela de decisão completa — from × to (todas as combinações)', () => {
+    const allStatuses = Object.values(ChargeStatus);
+
+    const validTransitions: Array<[ChargeStatus, ChargeStatus]> = [
+      [ChargeStatus.CREATED, ChargeStatus.AWAITING_PAYMENT],
+      [ChargeStatus.AWAITING_PAYMENT, ChargeStatus.PAID],
+      [ChargeStatus.AWAITING_PAYMENT, ChargeStatus.EXPIRED],
+    ];
+
+    const isValid = (fromStatus: ChargeStatus, toStatus: ChargeStatus): boolean =>
+      validTransitions.some(
+        ([validFrom, validTo]) => validFrom === fromStatus && validTo === toStatus,
+      );
+
+    const allCombinations = allStatuses.flatMap((fromStatus) =>
+      allStatuses.map((toStatus) => ({
+        from: fromStatus,
+        to: toStatus,
+        shouldSucceed: isValid(fromStatus, toStatus),
+      })),
+    );
+
+    it.each(allCombinations)(
+      '$from → $to → sucesso: $shouldSucceed',
+      ({ from, to, shouldSucceed }) => {
+        const machine = new ChargeStateMachine(from);
+        if (shouldSucceed) {
+          expect(machine.transitionTo(to)).toBe(to);
+        } else {
+          expect(() => machine.transitionTo(to)).toThrow(InvalidStateTransitionError);
+        }
+      },
+    );
+  });
 });

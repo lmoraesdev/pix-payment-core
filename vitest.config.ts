@@ -7,6 +7,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      '@test/helpers': resolve(__dirname, 'test/helpers/index.ts'),
+      '@test/builders': resolve(__dirname, 'test/builders/index.ts'),
+      '@test/fakes': resolve(__dirname, 'test/fakes/index.ts'),
     },
   },
   test: {
