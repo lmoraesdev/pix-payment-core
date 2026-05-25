@@ -1,59 +1,99 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, vi } from 'vitest';
 import { GetChargeService } from '@/modules/charges/application/get-charge.service';
 import { ChargeNotFoundError } from '@/modules/charges/domain/charge-not-found.error';
-import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
 import type { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
-import type { Charge } from '@/modules/charges/domain/charge.entity';
+import { runTests, setupStubs, assertStubs, getError } from '@test/helpers';
+import type { TestCase, StubConfig, CallMatchConfig } from '@test/helpers';
+import { aCharge } from '@test/builders';
 
-const storedCharge = {
-  id: 'charge-uuid-1',
-  status: ChargeStatus.AWAITING_PAYMENT,
-  amount: 10000,
-  currency: 'BRL',
-  payerDocument: '12345678901',
-  description: null,
-  qrCode: null,
-  expiresAt: null,
-  createdAt: new Date('2026-01-01'),
-} as unknown as Charge;
+// ─── Tipos do Test Table ──────────────────────────────────────────────────────
+
+interface Input {
+  chargeId: string;
+  stubs: {
+    chargeRepo: Partial<Record<'findById', StubConfig>>;
+  };
+}
+
+interface Output {
+  error: boolean;
+  errorClass?: new (...args: never[]) => Error;
+  errorId?: string;
+  dto?: Record<string, unknown>;
+  stubs: {
+    chargeRepo: Partial<Record<'findById', CallMatchConfig>>;
+  };
+}
+
+// ─── Dados compartilhados ─────────────────────────────────────────────────────
+
+const existingCharge = aCharge().awaitingPayment().build();
+const missingId = 'id-que-nao-existe';
+
+// ─── Test Cases ───────────────────────────────────────────────────────────────
+
+const testCases: Array<TestCase<Input, Output>> = [
+  {
+    name: 'charge encontrada → retorna ChargeResponseDto com todos os campos',
+    input: {
+      chargeId: existingCharge.id,
+      stubs: { chargeRepo: { findById: { resolves: existingCharge } } },
+    },
+    output: {
+      error: false,
+      dto: {
+        id: existingCharge.id,
+        status: existingCharge.status,
+        amount: existingCharge.amount,
+        currency: existingCharge.currency,
+        qr_code: existingCharge.qrCode,
+        expires_at: existingCharge.expiresAt,
+        created_at: existingCharge.createdAt,
+      },
+      stubs: { chargeRepo: { findById: { calledOnceWith: [existingCharge.id] } } },
+    },
+  },
+  {
+    name: 'charge não encontrada → lança ChargeNotFoundError com o id correto',
+    input: {
+      chargeId: missingId,
+      stubs: { chargeRepo: { findById: { resolves: null } } },
+    },
+    output: {
+      error: true,
+      errorClass: ChargeNotFoundError,
+      errorId: missingId,
+      stubs: { chargeRepo: { findById: { calledOnceWith: [missingId] } } },
+    },
+  },
+];
+
+// ─── Suite ────────────────────────────────────────────────────────────────────
 
 describe('GetChargeService', () => {
   let service: GetChargeService;
   let chargeRepo: { findById: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
+    vi.clearAllMocks();
     chargeRepo = { findById: vi.fn() };
     service = new GetChargeService(chargeRepo as unknown as ChargeRepository);
   });
 
-  it('retorna ChargeResponseDto quando a charge existe', async () => {
-    chargeRepo.findById.mockResolvedValue(storedCharge);
+  runTests(testCases, async (_name, { input, output }) => {
+    setupStubs(chargeRepo, input.stubs.chargeRepo);
 
-    const result = await service.execute('charge-uuid-1');
+    if (output.error) {
+      const error = await getError(() => service.execute(input.chargeId));
+      if (output.errorClass) expect(error).toBeInstanceOf(output.errorClass);
+      if (output.errorId) {
+        expect((error as unknown as ChargeNotFoundError).id).toBe(output.errorId);
+      }
+    } else {
+      const result = await service.execute(input.chargeId);
+      if (output.dto) expect(result).toEqual(output.dto);
+    }
 
-    expect(result).toEqual({
-      id: 'charge-uuid-1',
-      status: ChargeStatus.AWAITING_PAYMENT,
-      amount: 10000,
-      currency: 'BRL',
-      qr_code: null,
-      expires_at: null,
-      created_at: new Date('2026-01-01'),
-    });
-  });
-
-  it('lança ChargeNotFoundError quando a charge não existe', async () => {
-    chargeRepo.findById.mockResolvedValue(null);
-
-    await expect(service.execute('id-inexistente')).rejects.toThrow(ChargeNotFoundError);
-  });
-
-  it('o erro carrega o id da charge não encontrada', async () => {
-    chargeRepo.findById.mockResolvedValue(null);
-
-    await expect(service.execute('id-faltante')).rejects.toSatisfy(
-      (e: unknown): e is ChargeNotFoundError =>
-        e instanceof ChargeNotFoundError && e.id === 'id-faltante',
-    );
+    assertStubs('chargeRepo', chargeRepo, output.stubs.chargeRepo);
   });
 });

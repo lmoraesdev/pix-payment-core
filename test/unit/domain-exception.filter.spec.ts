@@ -7,17 +7,10 @@ import { MissingIdempotencyKeyError } from '@/modules/charges/domain/missing-ide
 import { InvalidStateTransitionError } from '@/modules/charges/domain/charge-state-machine';
 import { UnknownEventTypeError } from '@/modules/webhooks/domain/unknown-event-type.error';
 import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
-import type { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
+import { ErrorCode } from '@/shared/errors/error-code.enum';
+import { createMockLogger } from '../fakes';
 
-const mockLogger = {
-  forContext: vi.fn().mockReturnThis(),
-  log: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-};
-
-function makeHost(statusFn = vi.fn(), jsonFn = vi.fn()) {
+function makeHost(jsonFn = vi.fn()) {
   const res = { status: vi.fn().mockReturnValue({ json: jsonFn }) };
   const req = { method: 'GET', url: '/charges/abc' };
   return {
@@ -27,16 +20,17 @@ function makeHost(statusFn = vi.fn(), jsonFn = vi.fn()) {
     }),
     res,
     json: jsonFn,
-    statusFn,
   };
 }
 
 describe('DomainExceptionFilter', () => {
   let filter: DomainExceptionFilter;
+  let mockLogger: ReturnType<typeof createMockLogger>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    filter = new DomainExceptionFilter(mockLogger as unknown as StructuredLoggerService);
+    mockLogger = createMockLogger();
+    filter = new DomainExceptionFilter(mockLogger);
   });
 
   describe('mapeamento de status HTTP', () => {
@@ -60,7 +54,7 @@ describe('DomainExceptionFilter', () => {
       filter.catch(exception, host as never);
       expect(host.json).toHaveBeenCalledWith({
         statusCode: HttpStatus.NOT_FOUND,
-        code: 'AE01',
+        code: ErrorCode.CHARGE_NOT_FOUND,
         message: exception.message,
       });
     });
@@ -74,7 +68,7 @@ describe('DomainExceptionFilter', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           what: 'domain_error',
-          why: 'AE01',
+          why: ErrorCode.CHARGE_NOT_FOUND,
           error_class: 'ChargeNotFoundError',
         }),
       );
