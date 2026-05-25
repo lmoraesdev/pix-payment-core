@@ -9,6 +9,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { LoggerModule } from './shared/logger/logger.module';
 import { GlobalExceptionFilter } from './shared/filters/global-exception.filter';
 import { DomainExceptionFilter } from './shared/filters/domain-exception.filter';
+import { ValidationExceptionFilter } from './shared/filters/validation-exception.filter';
 import { CorrelationIdMiddleware } from './shared/middleware/correlation-id.middleware';
 
 @Module({
@@ -25,6 +26,7 @@ import { CorrelationIdMiddleware } from './shared/middleware/correlation-id.midd
     // so DomainExceptionFilter runs first and GlobalExceptionFilter catches what's left.
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_FILTER, useClass: DomainExceptionFilter },
+    { provide: APP_FILTER, useClass: ValidationExceptionFilter },
   ],
 })
 export class AppModule implements NestModule {
