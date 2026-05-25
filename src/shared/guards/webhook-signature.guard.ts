@@ -1,7 +1,8 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { RawBodyRequest } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { Request } from 'express';
+import { AuthenticationError } from '@/shared/errors/authentication.error';
 
 @Injectable()
 export class WebhookSignatureGuard implements CanActivate {
@@ -13,11 +14,11 @@ export class WebhookSignatureGuard implements CanActivate {
     const rawBody = req.rawBody;
 
     if (typeof signature !== 'string' || !secret) {
-      throw new UnauthorizedException();
+      throw new AuthenticationError('Missing X-Webhook-Signature header or WEBHOOK_SECRET');
     }
 
     if (!rawBody || rawBody.length === 0) {
-      throw new UnauthorizedException(
+      throw new AuthenticationError(
         'Missing raw body — ensure rawBody: true is set in NestFactory.create',
       );
     }
@@ -28,7 +29,7 @@ export class WebhookSignatureGuard implements CanActivate {
     const expBuf = Buffer.from(expected);
 
     if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
-      throw new UnauthorizedException();
+      throw new AuthenticationError('Invalid webhook signature');
     }
 
     return true;
