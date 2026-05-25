@@ -244,11 +244,80 @@ src/
 │   └── middleware/              # correlation id
 └── config/
 test/
-├── unit/                        # state machine, services
-└── e2e/                         # full request flow
+├── unit/                        # state machine, services, filters
+├── e2e/                         # full request flow with real NestJS app
+├── helpers/                     # runTests, setupStubs, assertStubs, getError
+├── builders/                    # fluent test-data builders (aCharge, aCreateChargeDto)
+└── fakes/                       # in-memory repositories, mock logger
 ```
 
 The domain layer has no NestJS or TypeORM imports. Business rules — including the state machine — can be tested without spinning up a database.
+
+## Testing
+
+### Approach: Test Table Pattern
+
+All unit tests are structured as typed tables of scenarios rather than scattered `it()` blocks.
+
+```typescript
+const testCases: Array<TestCase<Input, Output>> = [
+  {
+    name: 'charge found → returns ChargeResponseDto',
+    input: { chargeId: existingCharge.id, stubs: { chargeRepo: { findById: { resolves: existingCharge } } } },
+    output: { error: false, dto: { id: existingCharge.id, ... } },
+  },
+  {
+    name: 'charge not found → throws ChargeNotFoundError',
+    input: { chargeId: 'missing-id', stubs: { chargeRepo: { findById: { resolves: null } } } },
+    output: { error: true, errorClass: ChargeNotFoundError },
+  },
+];
+
+runTests(testCases, async (_name, { input, output }) => {
+  setupStubs(chargeRepo, input.stubs.chargeRepo);
+  // single assertion block shared by every case
+});
+```
+
+### Infrastructure
+
+| Helper | Purpose |
+|--------|---------|
+| `runTests(cases, fn)` | Iterates test cases, wires `it` / `it.only` / `it.skip` based on optional `testType` field |
+| `setupStubs(mock, config)` | Configures `vi.fn()` from `{ resolves, rejects, returns }` |
+| `assertStubs(dep, mock, config)` | Validates call expectations from `{ calledOnceWith, notCalled, calledTimes }` |
+| `getError(fn)` | Awaits a throwing async function and returns the error, fails if nothing was thrown |
+
+Builders (`aCharge()`, `aCreateChargeDto()`) use a fluent API so each test case gets its own instance and state mutations don't leak between cases.
+
+### Decision matrices
+
+The state machine has 4 statuses × 2 event types = 8 combinations. All 8 are generated programmatically:
+
+```typescript
+const allCombinations = allStatuses.flatMap((fromStatus) =>
+  eventTypes.map((eventType) => ({ fromStatus, eventType, shouldSucceed: isValid(fromStatus, eventType) }))
+);
+
+it.each(allCombinations)('$fromStatus + $eventType → sucesso: $shouldSucceed', ...);
+```
+
+No combination can be accidentally omitted. Adding a new status or event type automatically extends the matrix.
+
+### Trade-offs
+
+**Why the table pattern over plain `it()` blocks:**
+
+| | Ad-hoc `it()` | Test Table Pattern |
+|---|---|---|
+| Adding a new scenario | Copy + paste a block | Add one row |
+| Missing a case | Silently absent | Visible gap in the table |
+| Changing an assertion | Update N blocks | Update one shared callback |
+| Isolating a failing case | `it.only(...)` spread across file | `testType: 'only'` on the row |
+
+**Accepted cost:** more upfront ceremony than a single `it()`. For a one-off trivial check (e.g., `it('code is AE01', ...)`) a plain `it.each` row is still used — the overhead is a column in the existing table, not a new infrastructure.
+
+**Why the pattern pays off here specifically:** `ProcessWebhookService` has a decision matrix (charge state × event type). `DomainExceptionFilter` has 6 error classes each requiring 3 assertions (status, body, log). Without a table, those combinations live in separate describe blocks and diverge silently as the codebase grows.
 
 ## Decisions
 
@@ -281,6 +350,7 @@ Shipped in MVP:
 - [x] Machine-readable error codes catalog
 - [x] CI pipeline (GitHub Actions — lint, build, test on every push)
 - [x] Liveness probe (`GET /health`)
+- [x] Test Table Pattern with decision matrices, shared builders, fakes, and test helpers
 
 Planned for v2:
 
