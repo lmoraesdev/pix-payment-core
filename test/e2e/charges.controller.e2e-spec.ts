@@ -15,11 +15,14 @@ import { ChargeRepository } from '@/modules/charges/infrastructure/charge.reposi
 import { IdempotencyRepository } from '@/modules/charges/infrastructure/idempotency.repository';
 import { ChargesController } from '@/modules/charges/presentation/charges.controller';
 import { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
+import { TransactionRunner } from '@/shared/database/transaction-runner';
 import {
   InMemoryChargeRepository,
   InMemoryIdempotencyRepository,
 } from '../fakes';
 import { aCreateChargeDto } from '../builders';
+
+const fakeTransactionRunner = { run: (work: (manager: undefined) => unknown) => work(undefined) };
 
 describe('ChargesController (e2e)', () => {
   let app: INestApplication;
@@ -34,6 +37,7 @@ describe('ChargesController (e2e)', () => {
         GetChargeService,
         { provide: ChargeRepository, useClass: InMemoryChargeRepository },
         { provide: IdempotencyRepository, useClass: InMemoryIdempotencyRepository },
+        { provide: TransactionRunner, useValue: fakeTransactionRunner },
         { provide: APP_PIPE, useClass: ZodValidationPipe },
         { provide: APP_FILTER, useClass: DomainExceptionFilter },
         { provide: APP_FILTER, useClass: ValidationExceptionFilter },

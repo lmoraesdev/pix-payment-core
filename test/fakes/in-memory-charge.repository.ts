@@ -17,6 +17,10 @@ export class InMemoryChargeRepository {
     return this.store.get(id) ?? null;
   }
 
+  async findByIdForUpdate(id: string): Promise<Charge | null> {
+    return this.store.get(id) ?? null;
+  }
+
   async save(charge: Charge): Promise<Charge> {
     const stored = { ...charge } as Charge;
     stored.transitionTo = (next: ChargeStatus): void => {

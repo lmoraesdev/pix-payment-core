@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'crypto';
+import { QueryFailedError } from 'typeorm';
 import { faker } from '@faker-js/faker';
 import { CreateChargeService } from '@/modules/charges/application/create-charge.service';
 import { IdempotencyConflictError } from '@/modules/charges/domain/idempotency-conflict.error';
@@ -7,10 +8,17 @@ import { ErrorCode } from '@/shared/errors/error-code.enum';
 import type { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
 import type { IdempotencyRepository } from '@/modules/charges/infrastructure/idempotency.repository';
 import type { IdempotencyKey } from '@/modules/charges/infrastructure/idempotency-key.entity';
+import type { TransactionRunner } from '@/shared/database/transaction-runner';
 import { runTests, setupStubs, assertStubs, getError } from '@test/helpers';
 import type { TestCase, StubConfig, CallMatchConfig } from '@test/helpers';
 import { aCharge, aCreateChargeDto, anIdempotencyKey } from '@test/builders';
 import { createMockLogger } from '@test/fakes';
+
+function fakeUniqueViolation(): QueryFailedError {
+  const err = new QueryFailedError('INSERT ...', [], new Error('duplicate key'));
+  (err as unknown as { code: string }).code = '23505';
+  return err;
+}
 
 // ─── Canonical hash ───────────────────────────────────────────────────────────
 
@@ -146,16 +154,19 @@ describe('CreateChargeService', () => {
   let service: CreateChargeService;
   let chargeRepo: { save: ReturnType<typeof vi.fn> };
   let idempotencyRepo: { findByKey: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn> };
+  let transactionRunner: { run: ReturnType<typeof vi.fn> };
   let mockLogger: ReturnType<typeof createMockLogger>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     chargeRepo = { save: vi.fn() };
     idempotencyRepo = { findByKey: vi.fn(), save: vi.fn() };
+    transactionRunner = { run: vi.fn((work: (manager: undefined) => unknown) => work(undefined)) };
     mockLogger = createMockLogger();
     service = new CreateChargeService(
       chargeRepo as unknown as ChargeRepository,
       idempotencyRepo as unknown as IdempotencyRepository,
+      transactionRunner as unknown as TransactionRunner,
       mockLogger,
     );
   });
@@ -251,6 +262,63 @@ describe('CreateChargeService', () => {
       const hashB = (idempotencyRepo.save.mock.calls[0][0] as IdempotencyKey).requestHash;
 
       expect(hashA).not.toBe(hashB);
+    });
+  });
+
+  describe('corrida de idempotency key (unique violation na transação)', () => {
+    it('duas requisições concorrentes com o mesmo hash → a perdedora devolve a resposta cacheada da vencedora', async () => {
+      const winner = anIdempotencyKey()
+        .withKey(idempotencyKey)
+        .withRequestHash(requestHash)
+        .withResponseBody({ id: savedCharge.id } as Record<string, unknown>)
+        .build();
+
+      idempotencyRepo.findByKey.mockResolvedValueOnce(null).mockResolvedValueOnce(winner);
+      chargeRepo.save.mockResolvedValue(savedCharge);
+      idempotencyRepo.save.mockRejectedValue(fakeUniqueViolation());
+
+      const result = await service.execute(dto, idempotencyKey);
+
+      expect(result.created).toBe(false);
+      expect(result.data).toBe(winner.responseBody);
+      expect(idempotencyRepo.findByKey).toHaveBeenCalledTimes(2);
+    });
+
+    it('duas requisições concorrentes com hash diferente → lança IdempotencyConflictError', async () => {
+      const winner = anIdempotencyKey()
+        .withKey(idempotencyKey)
+        .withRequestHash('hash-diferente-da-perdedora')
+        .build();
+
+      idempotencyRepo.findByKey.mockResolvedValueOnce(null).mockResolvedValueOnce(winner);
+      chargeRepo.save.mockResolvedValue(savedCharge);
+      idempotencyRepo.save.mockRejectedValue(fakeUniqueViolation());
+
+      const error = await getError(() => service.execute(dto, idempotencyKey));
+
+      expect(error).toBeInstanceOf(IdempotencyConflictError);
+      expect((error as unknown as { code: string }).code).toBe(ErrorCode.IDEMPOTENCY_CONFLICT);
+    });
+
+    it('unique violation sem nenhum registro encontrado no reload → relança o erro original', async () => {
+      idempotencyRepo.findByKey.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      chargeRepo.save.mockResolvedValue(savedCharge);
+      const violation = fakeUniqueViolation();
+      idempotencyRepo.save.mockRejectedValue(violation);
+
+      const error = await getError(() => service.execute(dto, idempotencyKey));
+
+      expect(error).toBe(violation);
+    });
+
+    it('as escritas de charge e idempotency key acontecem dentro da mesma transação', async () => {
+      idempotencyRepo.findByKey.mockResolvedValueOnce(null);
+      chargeRepo.save.mockResolvedValue(savedCharge);
+      idempotencyRepo.save.mockResolvedValue(undefined);
+
+      await service.execute(dto, idempotencyKey);
+
+      expect(transactionRunner.run).toHaveBeenCalledTimes(1);
     });
   });
 });
