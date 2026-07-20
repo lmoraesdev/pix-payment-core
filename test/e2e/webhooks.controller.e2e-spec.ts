@@ -15,10 +15,12 @@ import { WebhooksController } from '@/modules/webhooks/presentation/webhooks.con
 import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
 import { ChargeRepository } from '@/modules/charges/infrastructure/charge.repository';
 import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import { TransactionRunner } from '@/shared/database/transaction-runner';
 import { InMemoryChargeRepository, InMemoryWebhookEventRepository } from '../fakes';
 import { aCharge, aWebhookEvent } from '../builders';
 
 const TEST_SECRET = 'test-webhook-secret';
+const fakeTransactionRunner = { run: (work: (manager: undefined) => unknown) => work(undefined) };
 
 function sign(rawJson: string): string {
   return createHmac('sha256', TEST_SECRET).update(rawJson).digest('hex');
@@ -50,6 +52,7 @@ describe('WebhooksController (e2e)', () => {
         ProcessWebhookService,
         { provide: ChargeRepository, useValue: chargeRepo },
         { provide: WebhookEventRepository, useValue: webhookEventRepo },
+        { provide: TransactionRunner, useValue: fakeTransactionRunner },
         { provide: APP_PIPE, useClass: ZodValidationPipe },
         { provide: APP_FILTER, useClass: DomainExceptionFilter },
       ],

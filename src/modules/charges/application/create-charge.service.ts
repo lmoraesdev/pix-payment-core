@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { StructuredLoggerService } from '@/shared/logger/structured-logger.service';
 import { DomainError } from '@/shared/errors/domain.error';
+import { isUniqueViolation } from '@/shared/database/is-unique-violation';
+import { TransactionRunner } from '@/shared/database/transaction-runner';
 import { Charge } from '@/modules/charges/domain/charge.entity';
 import { ChargeStatus } from '@/modules/charges/domain/charge-status.enum';
 import { IdempotencyConflictError } from '@/modules/charges/domain/idempotency-conflict.error';
@@ -25,6 +27,7 @@ export class CreateChargeService {
   constructor(
     private readonly chargeRepository: ChargeRepository,
     private readonly idempotencyRepository: IdempotencyRepository,
+    private readonly transactionRunner: TransactionRunner,
     logger: StructuredLoggerService,
   ) {
     this.logger = logger.forContext('CreateChargeService');
@@ -55,27 +58,7 @@ export class CreateChargeService {
     const existingRecord = await this.idempotencyRepository.findByKey(idempotencyKey);
 
     if (existingRecord) {
-      if (existingRecord.requestHash !== requestHash) {
-        this.logger.warn({
-          what: 'idempotency_conflict',
-          why: 'key_reused_with_different_body',
-          how: 'POST /charges',
-          key: idempotencyKey,
-        });
-        throw new IdempotencyConflictError(idempotencyKey);
-      }
-
-      this.logger.log({
-        what: 'idempotency_cache_hit',
-        why: 'duplicate_request',
-        how: 'POST /charges',
-        charge_id: existingRecord.chargeId,
-      });
-
-      return {
-        data: existingRecord.responseBody as unknown as ChargeResponseDto,
-        created: false,
-      };
+      return this.handleExistingRecord(existingRecord, requestHash);
     }
 
     const newCharge = Object.assign(new Charge(), {
@@ -89,38 +72,79 @@ export class CreateChargeService {
       expiresAt: null,
     });
 
-    const savedCharge = await this.chargeRepository.save(newCharge);
+    try {
+      return await this.transactionRunner.run(async (manager) => {
+        const savedCharge = await this.chargeRepository.save(newCharge, manager);
 
-    const response: ChargeResponseDto = {
-      id: savedCharge.id,
-      status: savedCharge.status,
-      amount: savedCharge.amount,
-      currency: savedCharge.currency,
-      qr_code: savedCharge.qrCode,
-      expires_at: savedCharge.expiresAt,
-      created_at: savedCharge.createdAt,
-    };
+        const response: ChargeResponseDto = {
+          id: savedCharge.id,
+          status: savedCharge.status,
+          amount: savedCharge.amount,
+          currency: savedCharge.currency,
+          qr_code: savedCharge.qrCode,
+          expires_at: savedCharge.expiresAt,
+          created_at: savedCharge.createdAt,
+        };
+
+        const idempotencyRecord = Object.assign(new IdempotencyKey(), {
+          key: idempotencyKey,
+          chargeId: savedCharge.id,
+          requestHash,
+          responseBody: response as unknown as Record<string, unknown>,
+        });
+
+        await this.idempotencyRepository.save(idempotencyRecord, manager);
+
+        this.logger.log({
+          what: 'charge_created',
+          why: 'user_request',
+          how: 'POST /charges',
+          who: request.payer_document,
+          charge_id: savedCharge.id,
+          amount: savedCharge.amount,
+          currency: savedCharge.currency,
+        });
+
+        return { data: response, created: true };
+      });
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+
+      // Duas requisições concorrentes com a mesma idempotency key colidiram no
+      // banco: a transação perdedora foi revertida por completo (charge inclusa).
+      // A vencedora já persistiu o registro — buscamos e devolvemos ele.
+      const winner = await this.idempotencyRepository.findByKey(idempotencyKey);
+      if (!winner) throw err;
+
+      return this.handleExistingRecord(winner, requestHash);
+    }
+  }
+
+  private handleExistingRecord(
+    existingRecord: IdempotencyKey,
+    requestHash: string,
+  ): CreateChargeResult {
+    if (existingRecord.requestHash !== requestHash) {
+      this.logger.warn({
+        what: 'idempotency_conflict',
+        why: 'key_reused_with_different_body',
+        how: 'POST /charges',
+        key: existingRecord.key,
+      });
+      throw new IdempotencyConflictError(existingRecord.key);
+    }
 
     this.logger.log({
-      what: 'charge_created',
-      why: 'user_request',
+      what: 'idempotency_cache_hit',
+      why: 'duplicate_request',
       how: 'POST /charges',
-      who: request.payer_document,
-      charge_id: savedCharge.id,
-      amount: savedCharge.amount,
-      currency: savedCharge.currency,
+      charge_id: existingRecord.chargeId,
     });
 
-    const idempotencyRecord = Object.assign(new IdempotencyKey(), {
-      key: idempotencyKey,
-      chargeId: savedCharge.id,
-      requestHash,
-      responseBody: response as unknown as Record<string, unknown>,
-    });
-
-    await this.idempotencyRepository.save(idempotencyRecord);
-
-    return { data: response, created: true };
+    return {
+      data: existingRecord.responseBody as unknown as ChargeResponseDto,
+      created: false,
+    };
   }
 
   /**

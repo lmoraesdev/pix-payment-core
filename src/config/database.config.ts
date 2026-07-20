@@ -13,4 +13,14 @@ export const databaseConfig = (): TypeOrmModuleOptions => ({
   entities: [Charge, IdempotencyKey, WebhookEvent],
   synchronize: process.env['TYPEORM_SYNCHRONIZE'] === 'true',
   logging: process.env['TYPEORM_LOGGING'] === 'true',
+  // Limites explícitos em vez dos defaults do driver `pg`: sem eles, o pool
+  // (padrão 10 conexões) e queries sem timeout são a causa mais comum de
+  // esgotamento de conexão sob carga — o mesmo tipo de gargalo "invisível"
+  // que a Shopify só descobriu instrumentando hold time de conexão em produção.
+  extra: {
+    max: Number(process.env['DB_POOL_MAX'] ?? 20),
+    idleTimeoutMillis: Number(process.env['DB_IDLE_TIMEOUT_MS'] ?? 30_000),
+    connectionTimeoutMillis: Number(process.env['DB_CONNECTION_TIMEOUT_MS'] ?? 5_000),
+    statement_timeout: Number(process.env['DB_STATEMENT_TIMEOUT_MS'] ?? 10_000),
+  },
 });
