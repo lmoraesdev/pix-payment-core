@@ -186,7 +186,7 @@ Schema is versioned with TypeORM migrations (`src/database/migrations`) — `TYP
 | `expires_at` | timestamptz, nullable | |
 | `created_at` / `updated_at` | timestamptz | |
 
-Index: `IDX_charges_status_expires_at` on `(status, expires_at)` — the expiration path scans for `AWAITING_PAYMENT` charges past their `expires_at`; without a composite index that scan degrades to a full table scan as charges accumulate.
+Index: `IDX_charges_status_expires_at` on `(status, expires_at)`, declared on the `Charge` entity via `@Index` — the expiration path scans for `AWAITING_PAYMENT` charges past their `expires_at`; without a composite index that scan degrades to a full table scan as charges accumulate. Declaring it on the entity (rather than leaving it migration-only) matters here specifically because `migration:generate` diffs entity metadata against the live schema: an undeclared index reads as drift and gets dropped by the next generated migration.
 
 **`idempotency_keys`**
 
@@ -198,7 +198,7 @@ Index: `IDX_charges_status_expires_at` on `(status, expires_at)` — the expirat
 | `response_body` | jsonb | |
 | `created_at` | timestamptz | |
 
-The `charge_id` foreign key wasn't declared at the database level until the second migration — it existed only as convention. Adding the constraint closes that gap: it's now impossible to persist an idempotency record pointing at a charge that doesn't exist, and it's declared on the `IdempotencyKey` entity (`src/modules/charges/infrastructure/idempotency-key.entity.ts`) as a `@ManyToOne` mapped onto the same `charge_id` column already used for writes. The `Charge` domain entity itself (`src/modules/charges/domain/charge.entity.ts`) gets no new TypeORM import for this — no inverse `@OneToMany` was added, keeping that file's TypeORM surface exactly what it was before.
+The `charge_id` foreign key wasn't declared at the database level until the second migration — it existed only as convention. Adding the constraint closes that gap: it's now impossible to persist an idempotency record pointing at a charge that doesn't exist, and it's declared on the `IdempotencyKey` entity (`src/modules/charges/infrastructure/idempotency-key.entity.ts`) as a `@ManyToOne` mapped onto the same `charge_id` column already used for writes. No inverse `@OneToMany` was added on `Charge` for this.
 
 **`webhook_events`**
 

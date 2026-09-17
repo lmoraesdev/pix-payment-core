@@ -1,8 +1,9 @@
-import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 import { ChargeStateMachine } from './charge-state-machine';
 import { ChargeStatus } from './charge-status.enum';
 
 @Entity('charges')
+@Index('IDX_charges_status_expires_at', ['status', 'expiresAt'])
 export class Charge {
   @PrimaryColumn({ type: 'varchar' })
   id!: string;
