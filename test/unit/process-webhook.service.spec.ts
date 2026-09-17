@@ -32,6 +32,7 @@ interface Output {
   stubs: {
     chargeRepo: Partial<Record<'findByIdForUpdate' | 'save', CallMatchConfig>>;
     webhookEventRepo: Partial<Record<'markAsProcessed', CallMatchConfig>>;
+    transactionRunner?: Partial<Record<'run', CallMatchConfig>>;
   };
   logs?: { method: 'log' | 'warn' | 'error'; what: string };
 }
@@ -134,7 +135,7 @@ const testCases: Array<TestCase<Input, Output>> = [
     },
   },
   {
-    name: 'tipo de evento desconhecido → lança UnknownEventTypeError',
+    name: 'tipo de evento desconhecido → lança UnknownEventTypeError sem abrir transação',
     input: {
       event: aWebhookEvent()
         .withType('payment.refunded' as never)
@@ -149,8 +150,9 @@ const testCases: Array<TestCase<Input, Output>> = [
       error: true,
       errorClass: UnknownEventTypeError,
       stubs: {
-        chargeRepo: { findByIdForUpdate: { called: true }, save: { notCalled: true } },
-        webhookEventRepo: { markAsProcessed: { called: true } },
+        chargeRepo: { findByIdForUpdate: { notCalled: true }, save: { notCalled: true } },
+        webhookEventRepo: { markAsProcessed: { notCalled: true } },
+        transactionRunner: { run: { notCalled: true } },
       },
     },
   },
@@ -190,7 +192,9 @@ describe('ProcessWebhookService', () => {
     vi.clearAllMocks();
     chargeRepo = { findByIdForUpdate: vi.fn(), save: vi.fn() };
     webhookEventRepo = { markAsProcessed: vi.fn() };
-    transactionRunner = { run: vi.fn((work: (manager: undefined) => unknown) => work(undefined)) };
+    transactionRunner = {
+      run: vi.fn((_tag: string, work: (manager: undefined) => unknown) => work(undefined)),
+    };
     mockLogger = createMockLogger();
     service = new ProcessWebhookService(
       chargeRepo as unknown as ChargeRepository,
@@ -218,6 +222,9 @@ describe('ProcessWebhookService', () => {
 
     assertStubs('chargeRepo', chargeRepo, output.stubs.chargeRepo);
     assertStubs('webhookEventRepo', webhookEventRepo, output.stubs.webhookEventRepo);
+    if (output.stubs.transactionRunner) {
+      assertStubs('transactionRunner', transactionRunner, output.stubs.transactionRunner);
+    }
 
     if (output.logs) {
       expect(mockLogger[output.logs.method]).toHaveBeenCalledWith(
@@ -274,6 +281,7 @@ describe('ProcessWebhookService', () => {
       await service.execute(webhookEvent);
 
       expect(transactionRunner.run).toHaveBeenCalledTimes(1);
+      expect(transactionRunner.run).toHaveBeenCalledWith('process_webhook', expect.any(Function));
     });
 
     it('erro ao salvar a charge propaga para fora da transação (rollback fica a cargo do Postgres)', async () => {

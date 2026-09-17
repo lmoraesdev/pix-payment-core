@@ -73,7 +73,7 @@ export class CreateChargeService {
     });
 
     try {
-      return await this.transactionRunner.run(async (manager) => {
+      return await this.transactionRunner.run('create_charge', async (manager) => {
         const savedCharge = await this.chargeRepository.save(newCharge, manager);
 
         const response: ChargeResponseDto = {

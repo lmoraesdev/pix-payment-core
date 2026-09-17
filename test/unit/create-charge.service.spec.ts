@@ -161,7 +161,9 @@ describe('CreateChargeService', () => {
     vi.clearAllMocks();
     chargeRepo = { save: vi.fn() };
     idempotencyRepo = { findByKey: vi.fn(), save: vi.fn() };
-    transactionRunner = { run: vi.fn((work: (manager: undefined) => unknown) => work(undefined)) };
+    transactionRunner = {
+      run: vi.fn((_tag: string, work: (manager: undefined) => unknown) => work(undefined)),
+    };
     mockLogger = createMockLogger();
     service = new CreateChargeService(
       chargeRepo as unknown as ChargeRepository,
@@ -319,6 +321,7 @@ describe('CreateChargeService', () => {
       await service.execute(dto, idempotencyKey);
 
       expect(transactionRunner.run).toHaveBeenCalledTimes(1);
+      expect(transactionRunner.run).toHaveBeenCalledWith('create_charge', expect.any(Function));
     });
   });
 });
