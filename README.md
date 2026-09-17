@@ -166,6 +166,72 @@ On every incoming `POST /charges`:
 
 This pattern follows what Stripe and other payment platforms expose publicly.
 
+## Database
+
+Schema is versioned with TypeORM migrations (`src/database/migrations`) — `TYPEORM_SYNCHRONIZE` is `false` everywhere, including production. Auto-sync was fine for a solo demo, but it diffs entities against the live schema and applies changes with no review step and no rollback; a migration is a reviewable, ordered, revertible artifact.
+
+### Tables
+
+**`charges`**
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | varchar | Primary key |
+| `status` | `charge_status_enum` (`CREATED`, `AWAITING_PAYMENT`, `PAID`, `EXPIRED`) | Enforced by the state machine, not by the database |
+| `amount` | int | Amount in cents |
+| `currency` | varchar(3) | |
+| `payer_document` | varchar | |
+| `description` | varchar, nullable | |
+| `qr_code` | varchar, nullable | |
+| `expires_at` | timestamptz, nullable | |
+| `created_at` / `updated_at` | timestamptz | |
+
+Index: `IDX_charges_status_expires_at` on `(status, expires_at)`, declared on the `Charge` entity via `@Index` — the expiration path scans for `AWAITING_PAYMENT` charges past their `expires_at`; without a composite index that scan degrades to a full table scan as charges accumulate. Declaring it on the entity (rather than leaving it migration-only) matters here specifically because `migration:generate` diffs entity metadata against the live schema: an undeclared index reads as drift and gets dropped by the next generated migration.
+
+**`idempotency_keys`**
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `key` | varchar | Primary key — the `Idempotency-Key` header value |
+| `charge_id` | varchar | `FOREIGN KEY → charges(id)` |
+| `request_hash` | varchar(64) | |
+| `response_body` | jsonb | |
+| `created_at` | timestamptz | |
+
+The `charge_id` foreign key wasn't declared at the database level until the second migration — it existed only as convention. Adding the constraint closes that gap: it's now impossible to persist an idempotency record pointing at a charge that doesn't exist, and it's declared on the `IdempotencyKey` entity (`src/modules/charges/infrastructure/idempotency-key.entity.ts`) as a `@ManyToOne` mapped onto the same `charge_id` column already used for writes. No inverse `@OneToMany` was added on `Charge` for this.
+
+**`webhook_events`**
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `event_id` | varchar | Primary key — dedup key for provider retries |
+| `processed_at` | timestamptz | |
+
+### Migrations
+
+```bash
+# Apply all pending migrations
+npm run migration:run
+
+# Generate a migration from entity changes (diffed against the live schema)
+npm run migration:generate -- src/database/migrations/DescriptiveName
+
+# Revert the last applied migration
+npm run migration:revert
+```
+
+All three point at the CLI-only `DataSource` in `src/config/data-source.ts`, which reuses `databaseConfig()` (same credentials and entities the app uses at runtime) but forces `synchronize: false`. The `@/` path alias is resolved for the CLI via the `ts-node` block in `tsconfig.json` (`require: ["tsconfig-paths/register"]`) — without it, `typeorm-ts-node-commonjs` can't resolve `@/modules/...` imports.
+
+In `docker compose`, the app container runs pending migrations automatically on boot (`TYPEORM_MIGRATIONS_RUN=true`) — no separate migration step needed to bring the stack up. This works against the compiled `dist` output too: the migrations glob in `databaseConfig()` is resolved relative to `__dirname`, so it points at `dist/database/migrations/*.js` in production and `src/database/migrations/*.ts` in development.
+
+### Seed
+
+```bash
+npm run seed
+```
+
+Inserts three charges covering the non-transient states (`AWAITING_PAYMENT`, `PAID`, `EXPIRED`) so the API has something to `GET` right after `docker compose up`. It's a plain upsert by primary key (`repository.save`), so running it more than once is safe.
+
 ## Logging (5W1H)
 
 Every log line is a single JSON object with a fixed shape. When an incident hits at 2am, every dimension is already there — no grepping across fields.
@@ -219,7 +285,13 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The API is reachable at `http://localhost:3000`. Interactive Swagger docs at `http://localhost:3000/api/docs`. PostgreSQL runs on `localhost:5432`.
+The API is reachable at `http://localhost:3000`. Interactive Swagger docs at `http://localhost:3000/api/docs`. PostgreSQL runs on `localhost:5432`. Migrations run automatically on container startup — see [Database](#database) for the schema and for running migrations/seed outside Docker.
+
+Optionally seed a few sample charges:
+
+```bash
+npm run seed
+```
 
 Run tests:
 
@@ -325,6 +397,7 @@ No combination can be accidentally omitted. Adding a new status or event type au
 - **Idempotency-Key in the header, not the body.** Convention used by Stripe, Mercado Pago, and others. Separates request identity from request payload.
 - **Webhook dedup in Postgres, not Redis.** A unique constraint with `ON CONFLICT DO NOTHING` is enough at this scale. Adding Redis would be over-engineering for a demo.
 - **TypeORM over Prisma.** Chosen to keep the stack close to what I use day-to-day. Prisma would be a natural next-step migration.
+- **Migrations over `synchronize`.** `synchronize: true` is convenient in a throwaway sandbox but has no review step, no ordering, and no rollback — the exact opposite of what you want once a schema change touches a table with data in it. Versioned migrations trade a bit of ceremony (write, run, sometimes revert) for a change history that's reviewable in a PR and reproducible across environments.
 - **5W1H logs.** Same format I've used in production. Makes log correlation across services trivial.
 - **AsyncLocalStorage for correlation ID propagation.** The `CorrelationIdMiddleware` stores the ID once per request in an `AsyncLocalStorage` context; every service reads it automatically without needing it passed as a parameter. No NestJS request scope required.
 
@@ -351,6 +424,7 @@ Shipped in MVP:
 - [x] CI pipeline (GitHub Actions — lint, build, test on every push)
 - [x] Liveness probe (`GET /health`)
 - [x] Test Table Pattern with decision matrices, shared builders, fakes, and test helpers
+- [x] Versioned database migrations (TypeORM), replacing `synchronize`
 
 Planned for v2:
 

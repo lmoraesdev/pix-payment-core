@@ -29,3 +29,49 @@ jobs:
 
       - name: Test
         run: npm test
+
+  migrations:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pix_payment
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pix_payment"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: pix_payment
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run migrations
+        run: npm run migration:run
+
+      # migration:generate's <path> argument is required by its CLI even in
+      # --check mode, but --check never writes a file — it just diffs
+      # entities against the live schema and exits 1 on drift, so the path
+      # given here never gets used to create anything.
+      - name: Check for schema drift (entities vs. migrations)
+        run: npm run migration:generate -- src/database/migrations/Check --check
