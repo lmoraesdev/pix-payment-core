@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { Charge } from '@/modules/charges/domain/charge.entity';
 import { IdempotencyKey } from '@/modules/charges/infrastructure/idempotency-key.entity';
@@ -11,6 +12,10 @@ export const databaseConfig = (): TypeOrmModuleOptions => ({
   password: process.env['DB_PASSWORD'] ?? 'postgres',
   database: process.env['DB_DATABASE'] ?? 'pix_payment',
   entities: [Charge, IdempotencyKey, WebhookEvent],
+  migrations: [join(__dirname, '..', 'database', 'migrations', '*{.ts,.js}')],
+  // Roda migrations pendentes na inicialização em vez de exigir um passo manual
+  // separado — necessário porque o container sobe direto do dist compilado.
+  migrationsRun: process.env['TYPEORM_MIGRATIONS_RUN'] === 'true',
   synchronize: process.env['TYPEORM_SYNCHRONIZE'] === 'true',
   logging: process.env['TYPEORM_LOGGING'] === 'true',
   // Limites explícitos em vez dos defaults do driver `pg`: sem eles, o pool
