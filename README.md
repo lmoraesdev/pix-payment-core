@@ -232,6 +232,28 @@ npm run seed
 
 Inserts three charges covering the non-transient states (`AWAITING_PAYMENT`, `PAID`, `EXPIRED`) so the API has something to `GET` right after `docker compose up`. It's a plain upsert by primary key (`repository.save`), so running it more than once is safe.
 
+## Connection visibility
+
+[Shopify's inventory reservations post-mortem](https://shopify.engineering/scaling-inventory-reservations) traced a scaling incident back to one root cause: connections held by processes nobody was measuring. Not slow queries, not CPU — connections sitting open, invisible, until the pool ran out. That's the one lesson this project borrows. The rest of that article — InnoDB gap locks, a composite primary key that changes row clustering, `UNION ALL` batching, per-unit row pools, `SKIP LOCKED` — is MySQL/inventory-domain-specific and doesn't transfer: Postgres defaults to `READ COMMITTED` already, doesn't cluster a heap table by primary key, and there's no batching or per-unit locking here to speed up (`SKIP LOCKED` would matter once an expiration job exists to poll for `AWAITING_PAYMENT` rows — it doesn't yet).
+
+**This is a demo, so there's no incident to fix.** The point is to have the answer ready *before* connections become the bottleneck, not to have solved one that already happened:
+
+- **Every transaction is tagged.** `TransactionRunner.run(tag, work)` takes a tag from a fixed allowlist (`create_charge`, `process_webhook` — a TypeScript union backed by a runtime check, so an unlisted tag throws before anything opens) and, as the transaction's first statement, runs `SELECT set_config('application_name', 'pix-core:<tag>', true)`. `set_config` with a bound parameter — not a template string — puts the tag in `application_name` without it ever touching raw SQL text, and `is_local = true` gives it the same scope as `SET LOCAL`: it resets when the transaction ends. This is the Postgres equivalent of the query-tagging + ProxySQL measurement combination the Shopify post describes — same idea, translated to what Postgres already exposes for free.
+- **Every transaction is timed.** `TransactionRunner` logs `db_transaction_completed` or `db_transaction_failed` with `tag`, `duration_ms` and `outcome`, at `warn` instead of `info` once `duration_ms` passes `DB_TX_WARN_MS` (default 200ms).
+- **`idle_in_transaction_session_timeout`** (default 15s, `DB_IDLE_IN_TX_TIMEOUT_MS`) kills a transaction that opened and then went idle — no query running, just sitting there. `statement_timeout` doesn't catch this: it only bounds an actual running query. A transaction stalled waiting on application code, a network hop, or a debugger breakpoint looks identical to `statement_timeout` — fine — right up until the pool runs out.
+- **`PoolMetricsService`** logs `db_pool_stats` (`total`, `idle`, `waiting`) every `DB_POOL_METRICS_INTERVAL_MS` (default 30s), at `warn` when `waiting > 0` — a request already queued for a connection the pool doesn't have.
+
+To see it live, hold a transaction open (or just watch during normal traffic) and query:
+
+```sql
+SELECT application_name, state, now() - xact_start AS tx_age
+FROM pg_stat_activity
+WHERE application_name LIKE 'pix-core:%'
+ORDER BY tx_age DESC;
+```
+
+Each row is a connection, which operation opened it (`application_name`), and how long it's been held (`tx_age`) — the exact question that had no answer in the incident this pattern is named after.
+
 ## Logging (5W1H)
 
 Every log line is a single JSON object with a fixed shape. When an incident hits at 2am, every dimension is already there — no grepping across fields.
@@ -400,6 +422,7 @@ No combination can be accidentally omitted. Adding a new status or event type au
 - **Migrations over `synchronize`.** `synchronize: true` is convenient in a throwaway sandbox but has no review step, no ordering, and no rollback — the exact opposite of what you want once a schema change touches a table with data in it. Versioned migrations trade a bit of ceremony (write, run, sometimes revert) for a change history that's reviewable in a PR and reproducible across environments.
 - **5W1H logs.** Same format I've used in production. Makes log correlation across services trivial.
 - **AsyncLocalStorage for correlation ID propagation.** The `CorrelationIdMiddleware` stores the ID once per request in an `AsyncLocalStorage` context; every service reads it automatically without needing it passed as a parameter. No NestJS request scope required.
+- **`set_config` over a `SET LOCAL` template string.** Both give the transaction a tag scoped to its own lifetime, but `set_config('application_name', $1, true)` binds the value as a query parameter — the tag never touches raw SQL text, even though it's already constrained to a fixed allowlist before it gets anywhere near a query.
 
 ## Error handling
 
@@ -425,6 +448,7 @@ Shipped in MVP:
 - [x] Liveness probe (`GET /health`)
 - [x] Test Table Pattern with decision matrices, shared builders, fakes, and test helpers
 - [x] Versioned database migrations (TypeORM), replacing `synchronize`
+- [x] Connection hold visibility (tagged transactions, `idle_in_transaction_session_timeout`, pool metrics)
 
 Planned for v2:
 

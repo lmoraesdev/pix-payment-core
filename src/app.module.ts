@@ -11,6 +11,7 @@ import { GlobalExceptionFilter } from './shared/filters/global-exception.filter'
 import { DomainExceptionFilter } from './shared/filters/domain-exception.filter';
 import { ValidationExceptionFilter } from './shared/filters/validation-exception.filter';
 import { CorrelationIdMiddleware } from './shared/middleware/correlation-id.middleware';
+import { PoolMetricsService } from './shared/database/pool-metrics.service';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { CorrelationIdMiddleware } from './shared/middleware/correlation-id.midd
     WebhooksModule,
   ],
   providers: [
+    PoolMetricsService,
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     // GlobalExceptionFilter registered first — NestJS applies filters in reverse order,
     // so DomainExceptionFilter runs first and GlobalExceptionFilter catches what's left.

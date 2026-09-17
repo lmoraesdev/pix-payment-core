@@ -22,7 +22,9 @@ import {
 } from '../fakes';
 import { aCreateChargeDto } from '../builders';
 
-const fakeTransactionRunner = { run: (work: (manager: undefined) => unknown) => work(undefined) };
+const fakeTransactionRunner = {
+  run: (_tag: string, work: (manager: undefined) => unknown) => work(undefined),
+};
 
 describe('ChargesController (e2e)', () => {
   let app: INestApplication;

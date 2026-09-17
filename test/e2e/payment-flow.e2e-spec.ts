@@ -26,7 +26,9 @@ import {
 import { aCreateChargeDto, aWebhookEvent } from '../builders';
 
 const TEST_SECRET = 'test-webhook-secret';
-const fakeTransactionRunner = { run: (work: (manager: undefined) => unknown) => work(undefined) };
+const fakeTransactionRunner = {
+  run: (_tag: string, work: (manager: undefined) => unknown) => work(undefined),
+};
 
 function sign(rawJson: string): string {
   return createHmac('sha256', TEST_SECRET).update(rawJson).digest('hex');

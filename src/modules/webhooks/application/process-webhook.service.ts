@@ -40,7 +40,14 @@ export class ProcessWebhookService {
         charge_id: dto.charge_id,
       });
 
-      await this.transactionRunner.run(async (manager) => {
+      // Validado antes de abrir a transação: um tipo desconhecido não deve
+      // pagar o custo de inserir em webhook_events e travar a charge com
+      // FOR UPDATE só para dar rollback em seguida — isso retém a conexão
+      // sem nenhum trabalho útil.
+      const nextStatus = EVENT_TYPE_TO_STATUS[dto.type];
+      if (!nextStatus) throw new UnknownEventTypeError(dto.type);
+
+      await this.transactionRunner.run('process_webhook', async (manager) => {
         try {
           await this.webhookEventRepository.markAsProcessed(dto.event_id, manager);
         } catch (err) {
@@ -60,9 +67,6 @@ export class ProcessWebhookService {
         // sobrescreva a transição do outro (lost update).
         const charge = await this.chargeRepository.findByIdForUpdate(dto.charge_id, manager);
         if (!charge) throw new ChargeNotFoundError(dto.charge_id);
-
-        const nextStatus = EVENT_TYPE_TO_STATUS[dto.type];
-        if (!nextStatus) throw new UnknownEventTypeError(dto.type);
 
         const fromStatus = charge.status;
         charge.transitionTo(nextStatus);
