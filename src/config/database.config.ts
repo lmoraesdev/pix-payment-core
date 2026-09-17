@@ -27,5 +27,10 @@ export const databaseConfig = (): TypeOrmModuleOptions => ({
     idleTimeoutMillis: Number(process.env['DB_IDLE_TIMEOUT_MS'] ?? 30_000),
     connectionTimeoutMillis: Number(process.env['DB_CONNECTION_TIMEOUT_MS'] ?? 5_000),
     statement_timeout: Number(process.env['DB_STATEMENT_TIMEOUT_MS'] ?? 10_000),
+    // statement_timeout mata uma query lenta, mas não faz nada por uma
+    // transação que já terminou de rodar SQL e ficou parada — esperando o
+    // código da aplicação, uma resposta de rede, um breakpoint. Essa
+    // conexão fica presa no pool sem aparecer como lentidão em lugar nenhum.
+    idle_in_transaction_session_timeout: Number(process.env['DB_IDLE_IN_TX_TIMEOUT_MS'] ?? 15_000),
   },
 });
